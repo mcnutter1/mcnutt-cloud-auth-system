@@ -18,17 +18,10 @@ $keyModel  = new MagicKeyModel($pdo);
 $returnUrl = $_GET['return_url'] ?? null;
 $appId     = $_GET['app_id'] ?? null;
 
-// Security footer info (best-effort)
-$clientIp = ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? '') ? trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]) : ($_SERVER['REMOTE_ADDR'] ?? 'Unknown');
-$tlsProto = $_SERVER['SSL_PROTOCOL'] ?? ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']!=='off') ? 'TLS' : 'HTTP');
-$cipherName = $_SERVER['SSL_CIPHER'] ?? null;
-$keyBits = $_SERVER['SSL_CIPHER_USEKEYSIZE'] ?? ($_SERVER['SSL_CIPHER_ALGKEYSIZE'] ?? null);
-$strength = 'Unknown'; $strengthClass = 'secondary';
-if($tlsProto && strpos($tlsProto,'TLS')!==false){
-  $kb = (int)$keyBits;
-  if(strpos($tlsProto,'TLSv1.3')!==false || $kb>=256){ $strength='Strong'; $strengthClass='success'; }
-  elseif($kb>=128){ $strength='Moderate'; $strengthClass='warning'; }
-  else { $strength='Weak'; $strengthClass='danger'; }
+// Determine app context for display (if provided)
+$appContext = null;
+if ($appId) {
+  try { $appContext = $appModel->findByAppId($appId); } catch (Throwable $e) { $appContext = null; }
 }
 
 $error = null; $ok=false; $principal=null; $user=null; $mk=null;
@@ -174,6 +167,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>mcnutt.cloud secure login</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
   <link href="/assets/css/app.css" rel="stylesheet">
   <meta name="theme-color" content="#0d6efd"/>
 </head><body>
@@ -182,24 +176,33 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   <div class="card auth-card overflow-hidden">
     <div class="card-body p-4 p-md-5">
       <div class="brand mb-3">
-        <div class="brand-mark">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1a3 3 0 0 0-3 3v2H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-1V4a3 3 0 0 0-3-3zm-2 5V4a2 2 0 1 1 4 0v2H6z"/></svg>
-        </div>
+        <div class="brand-mark"><span class="material-symbols-rounded" aria-hidden="true">passkey</span></div>
         <div>
-          <div class="text-muted small">Please enter your details</div>
           <div class="brand-title">mcnutt.cloud</div>
           <div class="text-muted">secure login</div>
         </div>
       </div>
+    <?php if($appContext && ($appContext['is_active'] ?? 0)): ?>
+      <div class="app-context alert alert-light border d-flex align-items-center gap-2 mb-3" role="status" aria-live="polite">
+        <span class="material-symbols-rounded text-primary" aria-hidden="true">apps</span>
+        <div>
+          <div class="small text-muted">Signing into</div>
+          <div class="fw-semibold"><?=htmlspecialchars($appContext['name'] ?? $appId)?></div>
+        </div>
+      </div>
+    <?php endif; ?>
     <?php if($error): ?><div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
     <form method="post" autocomplete="off" id="login-form">
       <?php csrf_field(); ?>
       <div class="mb-3">
         <label class="form-label small text-muted">Sign-in method</label>
-        <select class="form-select" id="f-mode" name="mode">
-          <option value="password" selected>Username &amp; Password</option>
-          <option value="magic">Magic Key</option>
-        </select>
+        <div class="select-with-caret">
+          <select class="form-select" id="f-mode" name="mode">
+            <option value="password" selected>Username &amp; Password</option>
+            <option value="magic">Magic Key</option>
+          </select>
+          <span class="material-symbols-rounded select-caret" aria-hidden="true">expand_more</span>
+        </div>
       </div>
       <hr class="sep"/>
       <div id="group-pass">
@@ -223,11 +226,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       <button class="btn btn-primary w-100">Sign in</button>
       <div class="text-center mt-2"><a href="/forgot.php" class="small muted-link">Forgot your password?</a></div>
     </form>
-    <div class="card-footer bg-light py-3">
-      <div class="small text-muted">
-        <strong>Security:</strong> <?=htmlspecialchars($tlsProto ?: 'HTTP')?><?php if($cipherName): ?> · <?=htmlspecialchars($cipherName)?><?php endif; ?><?php if($keyBits): ?> · <?=htmlspecialchars($keyBits)?>-bit<?php endif; ?> · IP <?=htmlspecialchars($clientIp)?>
-      </div>
-    </div>
   </div>
   <p class="text-center text-muted small mt-3 mb-0">By signing in you agree to our acceptable use policy.</p>
   </div>
