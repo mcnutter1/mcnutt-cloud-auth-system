@@ -15,9 +15,14 @@ function ensure_authenticated(){
   $cookie = $_COOKIE[$config['cookie_name']] ?? null;
   if($cookie){
     $data = json_decode($cookie, true);
-    if($data && ($data['exp']??0) > time()){
-      if(($data['exp'] - time()) < $config['refresh_sec']){ revalidate($data['session_token']); }
-      return $data;
+    if($data && isset($data['session_token'])){
+      // Always validate session token with SSO to catch revoked sessions
+      if(revalidate($data['session_token'])){
+        $new = $_COOKIE[$config['cookie_name']] ?? null;
+        return $new ? (json_decode($new, true) ?: $data) : $data;
+      }
+      // If invalid, clear cookie and continue to redirect
+      set_cookie_c($config['cookie_name'], '', -3600, $config['cookie_domain']);
     }
   }
   $return = (isset($_SERVER['HTTPS'])?'https':'http').'://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'];
