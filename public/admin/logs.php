@@ -139,7 +139,7 @@ require_once __DIR__.'/_partials/header.php';
                   <?php if($pwdEnc): $pwdPlain = function_exists('secret_log_decrypt') ? secret_log_decrypt($pwdEnc) : null; ?>
                     <span class="pwd-mask">hidden<?php if($passLen){ echo " (length $passLen)"; } ?></span>
                     <?php if($pwdPlain): ?><span class="pwd-plain d-none"><code><?=htmlspecialchars($pwdPlain)?></code></span> <?php endif; ?>
-                    <?php if($pwdPlain): ?><button class="btn btn-xs btn-link p-0" onclick="togglePwd(this)">Unhide</button><?php else: ?><span class="text-muted">(not recorded)</span><?php endif; ?>
+                    <?php if($pwdPlain): ?><button class="btn btn-sm btn-link p-0" onclick="togglePwd(this)">Unhide</button><?php else: ?><span class="text-muted">(not recorded)</span><?php endif; ?>
                   <?php else: ?>
                     <span class="text-muted">(not recorded)<?php if($passLen){ echo ", length $passLen"; } ?></span>
                   <?php endif; ?>
@@ -152,6 +152,23 @@ require_once __DIR__.'/_partials/header.php';
           </tbody>
         </table>
       </div>
+      <script>
+      function togglePwd(btn){
+        var container = btn.closest('div');
+        var mask = container.querySelector('.pwd-mask');
+        var plain = container.querySelector('.pwd-plain');
+        if(!plain) return;
+        if(plain.classList.contains('d-none')){
+          plain.classList.remove('d-none');
+          if(mask) mask.classList.add('d-none');
+          btn.textContent = 'Hide';
+        } else {
+          plain.classList.add('d-none');
+          if(mask) mask.classList.remove('d-none');
+          btn.textContent = 'Unhide';
+        }
+      }
+      </script>
     </div>
   </div>
 </div>
