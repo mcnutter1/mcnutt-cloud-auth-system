@@ -2,13 +2,7 @@ body { background-color: #f5f7fb; font-family: system-ui, -apple-system, Segoe U
 .card { border-radius: 12px; }
 
 /* Subtle enterprise background */
-.auth-bg {
-  min-height: 100vh;
-  padding: 40px 12px;
-  background:
-    radial-gradient(1200px 600px at 120% -20%, rgba(0,0,0,0.04), transparent),
-    radial-gradient(900px 500px at -10% 120%, rgba(0,0,0,0.035), transparent);
-}
+.auth-bg { min-height: 100vh; padding: 40px 12px; background: #f5f7fb; }
 
 .auth-card {
   border: 1px solid #e3e7ef;
@@ -18,10 +12,7 @@ body { background-color: #f5f7fb; font-family: system-ui, -apple-system, Segoe U
 .brand {
   display: flex; align-items: center; gap: .6rem;
 }
-.brand-mark {
-  width: 36px; height: 36px; border-radius: 8px;
-  background: linear-gradient(135deg, #0d6efd 0%, #2845a7 100%);
-}
+.brand-mark { display: none; }
 .brand-title { font-weight: 600; letter-spacing: .2px; }
 .muted-link { color: #667085; text-decoration: none; }
 .muted-link:hover { color: #495057; text-decoration: underline; }

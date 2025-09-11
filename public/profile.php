@@ -46,6 +46,17 @@ if($ptype==='user'){
   $st=$pdo->prepare('SELECT id,email,name,phone FROM magic_keys WHERE id=?'); $st->execute([$pid]); $identity=$st->fetch(PDO::FETCH_ASSOC); $identity['username']='(magic)';
 }
 
+// Applications enabled for this principal
+if($ptype==='user'){
+  $qe=$pdo->prepare('SELECT a.name,a.app_id FROM apps a JOIN user_app_access uaa ON uaa.app_id=a.id WHERE uaa.user_id=? ORDER BY a.name');
+  $qe->execute([$pid]);
+  $appsEnabled=$qe->fetchAll(PDO::FETCH_ASSOC);
+} else {
+  $qe=$pdo->prepare('SELECT a.name,a.app_id FROM apps a JOIN magic_key_app_access mkaa ON mkaa.app_id=a.id WHERE mkaa.magic_key_id=? ORDER BY a.name');
+  $qe->execute([$pid]);
+  $appsEnabled=$qe->fetchAll(PDO::FETCH_ASSOC);
+}
+
 // Recent activity
 $recentLogins = [];
 $appsUsed = [];
