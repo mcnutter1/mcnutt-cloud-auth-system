@@ -184,39 +184,42 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       <div class="brand mb-3">
         <div class="brand-mark"></div>
         <div>
-          <div class="brand-title">mcnutt.cloud secure login</div>
-          <div class="text-muted small">Sign in to continue</div>
+          <div class="text-muted small">Please enter your details</div>
+          <div class="brand-title">mcnutt.cloud</div>
+          <div class="text-muted">secure login</div>
         </div>
       </div>
     <?php if($error): ?><div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
-    <ul class="nav nav-pills mb-3" role="tablist">
-      <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pane-pass" type="button">Username &amp; Password</button></li>
-      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pane-magic" type="button">Magic Key</button></li>
-    </ul>
-    <div class="tab-content">
-      <div class="tab-pane fade show active" id="pane-pass">
-        <form method="post" autocomplete="off">
-          <?php csrf_field(); ?>
-          <input type="hidden" name="mode" value="password" />
-          <div class="mb-3"><label class="form-label">Username</label><input name="username" class="form-control form-control-lg" autocomplete="username" required /></div>
-          <div class="mb-3"><label class="form-label">Password</label><input name="password" type="password" class="form-control form-control-lg" autocomplete="current-password" required /></div>
-          <input type="hidden" name="return_url" value="<?=htmlspecialchars($returnUrl ?? '')?>" />
-          <input type="hidden" name="app_id" value="<?=htmlspecialchars($appId ?? '')?>" />
-          <button class="btn btn-primary w-100 mt-2">Sign in</button>
-          <div class="text-center mt-2"><a href="/forgot.php" class="small muted-link">Forgot your password?</a></div>
-        </form>
+    <form method="post" autocomplete="off" id="login-form">
+      <?php csrf_field(); ?>
+      <div class="mb-3">
+        <label class="form-label small text-muted">Sign-in method</label>
+        <select class="form-select" id="f-mode" name="mode">
+          <option value="password" selected>Username &amp; Password</option>
+          <option value="magic">Magic Key</option>
+        </select>
       </div>
-      <div class="tab-pane fade" id="pane-magic">
-        <form method="post" autocomplete="off">
-          <?php csrf_field(); ?>
-          <input type="hidden" name="mode" value="magic" />
-          <div class="mb-3"><label class="form-label">Magic Key</label><input name="magic_key" class="form-control form-control-lg" placeholder="ABCDE-FGHIJ-KLMNO-PQRST-UVWX" required /></div>
-          <input type="hidden" name="return_url" value="<?=htmlspecialchars($returnUrl ?? '')?>" />
-          <input type="hidden" name="app_id" value="<?=htmlspecialchars($appId ?? '')?>" />
-          <button class="btn btn-primary w-100 mt-2">Sign in</button>
-        </form>
+      <div id="group-pass">
+        <div class="form-floating mb-3">
+          <input type="text" class="form-control" id="f-user" name="username" placeholder="username" autocomplete="username" required>
+          <label for="f-user">Username</label>
+        </div>
+        <div class="form-floating mb-3">
+          <input type="password" class="form-control" id="f-pass" name="password" placeholder="password" autocomplete="current-password" required>
+          <label for="f-pass">Password</label>
+        </div>
       </div>
-    </div>
+      <div id="group-magic" class="d-none">
+        <div class="form-floating mb-3">
+          <input type="text" class="form-control" id="f-mkey" name="magic_key" placeholder="ABCDE-FGHIJ-KLMNO-PQRST-UVWX">
+          <label for="f-mkey">Magic Key</label>
+        </div>
+      </div>
+      <input type="hidden" name="return_url" value="<?=htmlspecialchars($returnUrl ?? '')?>" />
+      <input type="hidden" name="app_id" value="<?=htmlspecialchars($appId ?? '')?>" />
+      <button class="btn btn-primary w-100">Sign in</button>
+      <div class="text-center mt-2"><a href="/forgot.php" class="small muted-link">Forgot your password?</a></div>
+    </form>
     <div class="card-footer bg-light py-3">
       <div class="small text-muted d-flex flex-wrap align-items-center gap-3">
         <div>Client IP: <span class="text-body-secondary"><?=htmlspecialchars($clientIp)?></span></div>
