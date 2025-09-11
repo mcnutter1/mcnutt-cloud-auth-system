@@ -129,7 +129,7 @@ require_once __DIR__.'/_partials/header.php';
               <td class="small"><?php echo $uname!=='' ? htmlspecialchars($uname) : '—'; ?></td>
               <td class="small text-muted"><?=htmlspecialchars($app)?></td>
               <td class="small text-muted"><?=htmlspecialchars($r['ip'] ?? '')?></td>
-              <td class="small text-end"><button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#logd-<?=$r['id']?>">Details ▾</button></td>
+              <td class="small text-end"><button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#logd-<?=$r['id']?>" aria-expanded="false" aria-controls="logd-<?=$r['id']?>">Details ▾</button></td>
             </tr>
             <tr class="collapse" id="logd-<?=$r['id']?>"><td colspan="6">
               <div class="p-2 border-start border-end border-bottom rounded-bottom">
@@ -139,7 +139,14 @@ require_once __DIR__.'/_partials/header.php';
                   <?php if($pwdEnc): $pwdPlain = function_exists('secret_log_decrypt') ? secret_log_decrypt($pwdEnc) : null; ?>
                     <span class="pwd-mask">hidden<?php if($passLen){ echo " (length $passLen)"; } ?></span>
                     <?php if($pwdPlain): ?><span class="pwd-plain d-none"><code><?=htmlspecialchars($pwdPlain)?></code></span> <?php endif; ?>
-                    <?php if($pwdPlain): ?><button class="btn btn-sm btn-link p-0" onclick="togglePwd(this)">Unhide</button><?php else: ?><span class="text-muted">(not recorded)</span><?php endif; ?>
+                    <?php if($pwdPlain): ?>
+                      <button class="btn btn-link btn-sm p-0 align-baseline" type="button" onclick="togglePwd(this)" aria-label="Show password" title="Show password">
+                        <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.12 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/></svg>
+                        <svg class="icon-eye-slash d-none" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.823.823A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.33.33-.69.65-1.078.944l-.731-.749z"/><path d="M11.297 9.176a3 3 0 0 0-4.473-3.926l.77.77a2 2 0 0 1 2.873 2.873l.83.283z"/><path d="M3.35 5.47C2.307 6.352 1.48 7.3 1.173 8c.058.087.122.183.195.288.335.48.83 1.12 1.465 1.755C4.121 11.332 5.88 12.5 8 12.5c.86 0 1.664-.18 2.41-.49l.774.792A7.03 7.03 0 0 1 8 13.5C3 13.5 0 8 0 8s.94-1.721 2.641-3.238l.708.708z"/><path d="M13.646 14.354l-12-12 .708-.708 12 12-.708.708z"/></svg>
+                      </button>
+                    <?php else: ?>
+                      <span class="text-muted">(not recorded)</span>
+                    <?php endif; ?>
                   <?php else: ?>
                     <span class="text-muted">(not recorded)<?php if($passLen){ echo ", length $passLen"; } ?></span>
                   <?php endif; ?>
@@ -157,15 +164,23 @@ require_once __DIR__.'/_partials/header.php';
         var container = btn.closest('div');
         var mask = container.querySelector('.pwd-mask');
         var plain = container.querySelector('.pwd-plain');
+        var eye = btn.querySelector('.icon-eye');
+        var eyeSlash = btn.querySelector('.icon-eye-slash');
         if(!plain) return;
         if(plain.classList.contains('d-none')){
           plain.classList.remove('d-none');
           if(mask) mask.classList.add('d-none');
-          btn.textContent = 'Hide';
+          if(eye) eye.classList.add('d-none');
+          if(eyeSlash) eyeSlash.classList.remove('d-none');
+          btn.setAttribute('aria-label','Hide password');
+          btn.title='Hide password';
         } else {
           plain.classList.add('d-none');
           if(mask) mask.classList.remove('d-none');
-          btn.textContent = 'Unhide';
+          if(eye) eye.classList.remove('d-none');
+          if(eyeSlash) eyeSlash.classList.add('d-none');
+          btn.setAttribute('aria-label','Show password');
+          btn.title='Show password';
         }
       }
       </script>
