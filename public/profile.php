@@ -2,6 +2,7 @@
 require_once __DIR__.'/../src/bootstrap.php';
 require_once __DIR__.'/../src/db.php';
 require_once __DIR__.'/../src/csrf.php';
+require_once __DIR__.'/../src/secret_log.php';
 
 session_start();
 if(!isset($_SESSION['ptype'], $_SESSION['pid'])){
@@ -43,6 +44,31 @@ if($ptype==='user'){
   $st=$pdo->prepare('SELECT id,email,name,phone,username FROM users WHERE id=?'); $st->execute([$pid]); $identity=$st->fetch(PDO::FETCH_ASSOC);
 } else {
   $st=$pdo->prepare('SELECT id,email,name,phone FROM magic_keys WHERE id=?'); $st->execute([$pid]); $identity=$st->fetch(PDO::FETCH_ASSOC); $identity['username']='(magic)';
+}
+
+// Recent activity
+$recentLogins = [];
+$appsUsed = [];
+if($ptype==='user'){
+  $st=$pdo->prepare("SELECT ts, event, ip, detail FROM logs WHERE actor_type='user' AND actor_id=? ORDER BY ts DESC, id DESC LIMIT 50");
+  $st->execute([$pid]); $recentLogins=$st->fetchAll(PDO::FETCH_ASSOC);
+  foreach($recentLogins as $rl){
+    $d=json_decode($rl['detail'] ?? '', true);
+    if(is_array($d) && !empty($d['app_id'])){
+      $appsUsed[$d['app_id']] = ($appsUsed[$d['app_id']] ?? 0) + 1;
+    }
+  }
+}
+
+$failedAttempts = [];
+if($ptype==='user' && !empty($identity['username'])){
+  // Fetch a window of recent failures and filter by username in JSON detail
+  $st=$pdo->prepare("SELECT ts, ip, detail FROM logs WHERE event='login.failed' AND ts>DATE_SUB(NOW(), INTERVAL 30 DAY) ORDER BY ts DESC, id DESC LIMIT 200");
+  $st->execute(); $rows=$st->fetchAll(PDO::FETCH_ASSOC);
+  foreach($rows as $r){
+    $d=json_decode($r['detail'] ?? '', true);
+    if(($d['username'] ?? null) && strcasecmp($d['username'], $identity['username'])===0){ $failedAttempts[]=$r; if(count($failedAttempts)>=25) break; }
+  }
 }
 ?>
 <!doctype html>
@@ -90,6 +116,67 @@ if($ptype==='user'){
     </div>
     <?php endif; ?>
   </div>
+
+  <?php if($ptype==='user'): ?>
+  <div class="row g-4 mt-1">
+    <div class="col-md-7">
+      <div class="card shadow-sm"><div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h2 class="h6 mb-0">Recent Logins</h2>
+          <span class="small text-muted">Last 50</span>
+        </div>
+        <div class="list-group list-group-flush">
+          <?php if($recentLogins): ?>
+            <?php foreach($recentLogins as $r): $d=json_decode($r['detail'] ?? '', true); $app=$d['app_id'] ?? '—'; $dt=(new DateTime($r['ts']))->setTimezone(new DateTimeZone('America/New_York'))->format('m/d/Y h:i:s A'); ?>
+              <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="fw-semibold small"><?=htmlspecialchars($app)?> <span class="badge text-bg-success ms-1">Success</span></div>
+                  <div class="small text-muted">IP <?=htmlspecialchars($r['ip'] ?? '')?></div>
+                </div>
+                <div class="small text-muted"><?=$dt?></div>
+              </div>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <div class="list-group-item small text-muted">No login activity yet.</div>
+          <?php endif; ?>
+        </div>
+      </div></div>
+    </div>
+    <div class="col-md-5">
+      <div class="card shadow-sm"><div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h2 class="h6 mb-0">Failed Attempts</h2>
+          <span class="small text-muted">Last 25</span>
+        </div>
+        <div class="list-group list-group-flush">
+          <?php if($failedAttempts): ?>
+            <?php foreach($failedAttempts as $r): $d=json_decode($r['detail'] ?? '', true); $app=$d['app_id'] ?? '—'; $dt=(new DateTime($r['ts']))->setTimezone(new DateTimeZone('America/New_York'))->format('m/d/Y h:i:s A'); ?>
+              <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="fw-semibold small"><?=htmlspecialchars($app)?> <span class="badge text-bg-danger ms-1">Failed</span></div>
+                  <div class="small text-muted">IP <?=htmlspecialchars($r['ip'] ?? '')?></div>
+                </div>
+                <div class="small text-muted"><?=$dt?></div>
+              </div>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <div class="list-group-item small text-muted">No failed attempts found.</div>
+          <?php endif; ?>
+        </div>
+      </div></div>
+
+      <div class="card shadow-sm mt-3"><div class="card-body">
+        <h2 class="h6 mb-2">Applications Used</h2>
+        <?php if($appsUsed): ?>
+          <?php foreach($appsUsed as $app=>$cnt): ?>
+            <span class="badge rounded-pill text-bg-secondary me-1 mb-1"><?=htmlspecialchars($app)?> (<?=$cnt?>)</span>
+          <?php endforeach; ?>
+        <?php else: ?>
+          <div class="small text-muted">No app usage yet.</div>
+        <?php endif; ?>
+      </div></div>
+    </div>
+  </div>
+  <?php endif; ?>
 </div>
 </body></html>
-

@@ -116,7 +116,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       if(!empty($returnUrl)){
         header('Location: '.$returnUrl); exit;
       } else {
-        header('Content-Type: text/plain'); echo "Logged in. Session token: ".$sess['token']; exit;
+        header('Location: /profile.php'); exit;
       }
     }
   }
