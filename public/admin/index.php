@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__.'/../../src/bootstrap.php';
+require_once __DIR__.'/../../src/guard.php';
+require_admin();
 require_once __DIR__.'/_partials/header.php';
 ?>
 <div class="container py-4">

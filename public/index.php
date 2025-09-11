@@ -27,7 +27,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $user = $userModel->findByUsername($username);
     if($user && $user['is_active'] && password_verify($password, $user['password_hash'])){
       $ok=true; $principal=['type'=>'user','id'=>(int)$user['id']];
-      session_start(); $_SESSION['ptype']='user'; $_SESSION['pid']=(int)$user['id']; $_SESSION['is_admin']=true; // TODO: set from role check
+      session_start(); $_SESSION['ptype']='user'; $_SESSION['pid']=(int)$user['id']; $_SESSION['is_admin']=false;
     } else { $error='Invalid credentials.'; }
   } else {
     $key = strtoupper(trim($_POST['magic_key'] ?? ''));
@@ -42,6 +42,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $sess = $auth->issueSession($principal['type'], $principal['id'], null, (int)$CONFIG['SESSION_TTL_MIN']);
     $identity = ($principal['type']==='user') ? $userModel->publicProfile($principal['id']) : $keyModel->publicProfile($principal['id']);
     $roles = ($principal['type']==='user') ? $userModel->roles($principal['id']) : $keyModel->roles($principal['id']);
+    // Update admin flag in session based on role membership
+    $_SESSION['is_admin'] = in_array('admin', $roles, true);
     $payload = [
       'iss' => $CONFIG['APP_URL'],
       'iat' => time(),
