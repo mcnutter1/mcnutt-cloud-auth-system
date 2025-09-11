@@ -106,6 +106,12 @@ require_once __DIR__.'/_partials/header.php';
         <div class="text-muted small">Client IDs + secrets</div>
       </a>
     </div>
+    <div class="col-sm-6 col-lg-3">
+      <a class="card card-body shadow-sm text-decoration-none" href="logs.php">
+        <div class="fw-semibold">Logs</div>
+        <div class="text-muted small">Filter, browse, export</div>
+      </a>
+    </div>
   </div>
 </div>
 
