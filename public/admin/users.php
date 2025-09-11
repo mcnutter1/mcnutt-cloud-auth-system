@@ -10,6 +10,7 @@ $msg = null; $err = null;
 
 // Fetch roles for checkboxes
 $roles = $pdo->query("SELECT id,name FROM roles ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+$apps  = $pdo->query("SELECT id, app_id, name FROM apps WHERE is_active=1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
 
 // Handle create/update
 if($_SERVER['REQUEST_METHOD']==='POST'){
@@ -22,6 +23,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $password = $_POST['password'] ?? '';
     $is_active = isset($_POST['is_active']) ? 1 : 0;
     $sel_roles = array_map('intval', $_POST['roles'] ?? []);
+    $sel_apps  = array_map('intval', $_POST['apps']  ?? []);
 
     if($email==='' || $name==='' || $username==='') throw new Exception('Email, Name, and Username are required.');
 
@@ -49,6 +51,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       foreach($sel_roles as $rid){ $ins->execute([$userId,$rid]); }
     }
 
+    // Update app access mappings (deny-by-default)
+    $pdo->prepare("DELETE FROM user_app_access WHERE user_id=?")->execute([$userId]);
+    if($sel_apps){
+      $ins=$pdo->prepare("INSERT IGNORE INTO user_app_access (user_id,app_id) VALUES (?,?)");
+      foreach($sel_apps as $aid){ $ins->execute([$userId,$aid]); }
+    }
+
     $pdo->commit();
     $msg = $id ? 'User updated.' : 'User created.';
   } catch(Throwable $e){ if($pdo->inTransaction()) $pdo->rollBack(); $err=$e->getMessage(); }
@@ -65,7 +74,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action']) && $_POST['act
 }
 
 // Fetch users for list
-$users = $pdo->query("SELECT u.*, (SELECT COUNT(*) FROM user_roles ur WHERE ur.user_id=u.id) role_count, GROUP_CONCAT(ur.role_id) AS roles_csv FROM users u LEFT JOIN user_roles ur ON ur.user_id=u.id GROUP BY u.id ORDER BY u.created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
+$users = $pdo->query("SELECT u.*, (SELECT COUNT(*) FROM user_roles ur WHERE ur.user_id=u.id) role_count, GROUP_CONCAT(DISTINCT ur.role_id) AS roles_csv, GROUP_CONCAT(DISTINCT a.id) AS apps_csv FROM users u LEFT JOIN user_roles ur ON ur.user_id=u.id LEFT JOIN user_app_access uaa ON uaa.user_id=u.id LEFT JOIN apps a ON a.id=uaa.app_id GROUP BY u.id ORDER BY u.created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
 
 require_once __DIR__.'/_partials/header.php';
 ?>

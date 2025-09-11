@@ -38,6 +38,22 @@ session_start();
 if($_SERVER['REQUEST_METHOD']!=='POST' && $appId && isset($_SESSION['ptype'], $_SESSION['pid'])){
   $app = (new AppModel($pdo))->findByAppId($appId);
   if($app && $app['is_active'] && (int)($app['auto_login'] ?? 1)===1){
+    // Enforce per-app access (deny by default)
+    $aid = (int)$app['id'];
+    $allowed = false;
+    if($_SESSION['ptype']==='user'){
+      $st=$pdo->prepare('SELECT COUNT(*) FROM user_app_access WHERE user_id=? AND app_id=?');
+      $st->execute([(int)$_SESSION['pid'],$aid]);
+      $allowed = ((int)$st->fetchColumn())>0;
+    } else if($_SESSION['ptype']==='magic'){
+      $st=$pdo->prepare('SELECT COUNT(*) FROM magic_key_app_access WHERE magic_key_id=? AND app_id=?');
+      $st->execute([(int)$_SESSION['pid'],$aid]);
+      $allowed = ((int)$st->fetchColumn())>0;
+    }
+    if(!$allowed){
+      header('Location: /access_denied.php?app_id='.urlencode($appId).'&return_url='.urlencode($returnUrl ?: $app['return_url']));
+      exit;
+    }
     $ptype=$_SESSION['ptype']; $pid=(int)$_SESSION['pid'];
     $principal=['type'=>$ptype,'id'=>$pid];
     $sess = $auth->issueSession($principal['type'], $principal['id'], null, (int)$CONFIG['SESSION_TTL_MIN']);
@@ -104,6 +120,19 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if($appId){
       $app = $appModel->findByAppId($appId);
       if(!$app || !$app['is_active']) die('Unknown or inactive app');
+      // Enforce per-app access (deny by default)
+      $aid=(int)$app['id']; $allowed=false;
+      if($principal['type']==='user'){
+        $st=$pdo->prepare('SELECT COUNT(*) FROM user_app_access WHERE user_id=? AND app_id=?');
+        $st->execute([$principal['id'],$aid]); $allowed=((int)$st->fetchColumn())>0;
+      } else {
+        $st=$pdo->prepare('SELECT COUNT(*) FROM magic_key_app_access WHERE magic_key_id=? AND app_id=?');
+        $st->execute([$principal['id'],$aid]); $allowed=((int)$st->fetchColumn())>0;
+      }
+      if(!$allowed){
+        header('Location: /access_denied.php?app_id='.urlencode($appId).'&return_url='.urlencode($returnUrl ?: $app['return_url']));
+        exit;
+      }
       $secret = $appModel->getSecretForVerify($app);
       require_once __DIR__.'/../src/crypto.php';
       $json = json_encode($payload, JSON_UNESCAPED_SLASHES);
