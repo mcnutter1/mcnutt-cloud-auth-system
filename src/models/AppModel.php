@@ -10,7 +10,7 @@ class AppModel {
     $secret = getenv($envKey) ?: null;
     // Fallback: allow secret from DB if present (plaintext)
     if(!$secret) { $secret = $app['secret_plain'] ?? null; }
-    if(!$secret) { die('App secret not configured'); }
+    if(!$secret) { throw new RuntimeException('app_secret_missing'); }
     return $secret;
   }
 }

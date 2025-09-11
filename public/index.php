@@ -30,6 +30,14 @@ $error = null; $ok=false; $principal=null; $user=null; $mk=null;
 session_start();
 if($_SERVER['REQUEST_METHOD']!=='POST' && $appId && isset($_SESSION['ptype'], $_SESSION['pid'])){
   $app = (new AppModel($pdo))->findByAppId($appId);
+  if(!$app){
+    header('Location: /access_denied.php?reason=invalid_app&app_id='.urlencode($appId).'&return_url='.urlencode($returnUrl ?: '/'));
+    exit;
+  }
+  if(!(int)$app['is_active']){
+    header('Location: /access_denied.php?reason=inactive_app&app_id='.urlencode($appId).'&return_url='.urlencode($returnUrl ?: $app['return_url']));
+    exit;
+  }
   if($app && $app['is_active'] && (int)($app['auto_login'] ?? 1)===1){
     // Enforce per-app access (deny by default)
     $aid = (int)$app['id'];
@@ -58,12 +66,17 @@ if($_SERVER['REQUEST_METHOD']!=='POST' && $appId && isset($_SESSION['ptype'], $_
     $roles = ($principal['type']==='user') ? $userModel->roles($principal['id']) : $keyModel->roles($principal['id']);
     $_SESSION['is_admin'] = in_array('admin', $roles, true);
     $payload = [ 'iss'=>$CONFIG['APP_URL'], 'iat'=>time(), 'exp'=>$sess['expires_at'], 'session_token'=>$sess['token'], 'principal'=>$principal, 'identity'=>$identity, 'roles'=>$roles ];
-    $appSecret = $appModel->getSecretForVerify($app);
-    require_once __DIR__.'/../src/crypto.php';
-    $json = json_encode($payload, JSON_UNESCAPED_SLASHES); $sig=hmac_sign($json, $appSecret);
-    $ru = $returnUrl ?: $app['return_url'];
-    $q  = http_build_query(['payload'=>$json,'sig'=>$sig,'app_id'=>$appId]);
-    header('Location: '.$ru.(str_contains($ru,'?')?'&':'?').$q); exit;
+    try{
+      $appSecret = $appModel->getSecretForVerify($app);
+      require_once __DIR__.'/../src/crypto.php';
+      $json = json_encode($payload, JSON_UNESCAPED_SLASHES); $sig=hmac_sign($json, $appSecret);
+      $ru = $returnUrl ?: $app['return_url'];
+      $q  = http_build_query(['payload'=>$json,'sig'=>$sig,'app_id'=>$appId]);
+      header('Location: '.$ru.(str_contains($ru,'?')?'&':'?').$q); exit;
+    }catch(Throwable $e){
+      header('Location: /access_denied.php?reason=error&app_id='.urlencode($appId).'&return_url='.urlencode($returnUrl ?: $app['return_url']));
+      exit;
+    }
   }
 }
 // If simply visiting the login site and already authenticated, go to profile
@@ -125,7 +138,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     ];
     if($appId){
       $app = $appModel->findByAppId($appId);
-      if(!$app || !$app['is_active']) die('Unknown or inactive app');
+      if(!$app){
+        header('Location: /access_denied.php?reason=invalid_app&app_id='.urlencode($appId).'&return_url='.urlencode($returnUrl ?: '/'));
+        exit;
+      }
+      if(!(int)$app['is_active']){
+        header('Location: /access_denied.php?reason=inactive_app&app_id='.urlencode($appId).'&return_url='.urlencode($returnUrl ?: $app['return_url']));
+        exit;
+      }
       // Enforce per-app access (deny by default)
       $aid=(int)$app['id']; $allowed=false;
       if($principal['type']==='user'){
@@ -143,14 +163,19 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       }
       // Log access authorized
       log_event($pdo, $principal['type'], (int)$principal['id'], 'access.authorized', ['app_id'=>$appId, 'app_db_id'=>$aid, 'via'=>'login']);
-      $secret = $appModel->getSecretForVerify($app);
-      require_once __DIR__.'/../src/crypto.php';
-      $json = json_encode($payload, JSON_UNESCAPED_SLASHES);
-      $sig  = hmac_sign($json, $secret);
-      $ru = $returnUrl ?: $app['return_url'];
-      $q  = http_build_query(['payload'=>$json, 'sig'=>$sig, 'app_id'=>$appId]);
-      header('Location: '.$ru.(str_contains($ru,'?')?'&':'?').$q);
-      exit;
+      try{
+        $secret = $appModel->getSecretForVerify($app);
+        require_once __DIR__.'/../src/crypto.php';
+        $json = json_encode($payload, JSON_UNESCAPED_SLASHES);
+        $sig  = hmac_sign($json, $secret);
+        $ru = $returnUrl ?: $app['return_url'];
+        $q  = http_build_query(['payload'=>$json, 'sig'=>$sig, 'app_id'=>$appId]);
+        header('Location: '.$ru.(str_contains($ru,'?')?'&':'?').$q);
+        exit;
+      }catch(Throwable $e){
+        header('Location: /access_denied.php?reason=error&app_id='.urlencode($appId).'&return_url='.urlencode($returnUrl ?: $app['return_url']));
+        exit;
+      }
     } else {
       if(!empty($returnUrl)){
         header('Location: '.$returnUrl); exit;

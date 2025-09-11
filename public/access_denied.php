@@ -3,12 +3,37 @@ require_once __DIR__.'/../src/bootstrap.php';
 require_once __DIR__.'/../src/db.php';
 require_once __DIR__.'/../src/models/AppModel.php';
 
-$pdo=db(); $appId=$_GET['app_id'] ?? ''; $return=$_GET['return_url'] ?? '/';
-$appName = $appId;
-if($appId){
-  $st=$pdo->prepare('SELECT name FROM apps WHERE app_id=?'); $st->execute([$appId]); $row=$st->fetch(PDO::FETCH_ASSOC);
-  if($row && $row['name']) $appName=$row['name'].' ('.$appId.')';
+$pdo=db();
+$appId = $_GET['app_id'] ?? '';
+$return = $_GET['return_url'] ?? '/';
+$reason = $_GET['reason'] ?? 'not_authorized';
+
+// Look up app context if provided
+$appName = $appId; $app = null;
+if ($appId) {
+  $st=$pdo->prepare('SELECT name,is_active FROM apps WHERE app_id=?'); $st->execute([$appId]); $app=$st->fetch(PDO::FETCH_ASSOC);
+  if($app && !empty($app['name'])){ $appName = $app['name'].' ('.$appId.')'; }
+  // If app not found or disabled and no explicit reason provided, set more specific reason
+  if(!$app && (!isset($_GET['reason']) || $_GET['reason']==='not_authorized')){ $reason='invalid_app'; }
+  if($app && (int)$app['is_active']!==1 && (!isset($_GET['reason']) || $_GET['reason']==='not_authorized')){ $reason='inactive_app'; }
 }
+
+// Reason metadata
+$reasons = [
+  'not_authorized' => ['title'=>'Access denied',        'desc'=>'You do not have permission to access this application.'],
+  'invalid_app'    => ['title'=>'Invalid application',  'desc'=>'The requested application ID is not recognized.'],
+  'inactive_app'   => ['title'=>'Application disabled', 'desc'=>'The requested application is currently disabled.'],
+  'expired'        => ['title'=>'Session expired',      'desc'=>'Please sign in again to continue.'],
+  'error'          => ['title'=>'Something went wrong', 'desc'=>'A problem occurred processing your request.'],
+];
+$meta = $reasons[$reason] ?? $reasons['error'];
+$alertClass = in_array($reason, ['invalid_app','error']) ? 'danger' : ($reason==='expired' ? 'info' : 'warning');
+
+// Build logout href preserving context if available
+$q = [];
+if($appId!==''){ $q['app_id']=$appId; }
+if($return!==''){ $q['return_url']=$return; }
+$logoutHref = '/logout.php'.($q?('?'.http_build_query($q)):'');
 ?>
 <!doctype html>
 <html lang="en"><head>
@@ -31,16 +56,18 @@ if($appId){
             
           </div>
         </div>
-        <div class="alert alert-warning d-flex align-items-center gap-2" role="status" aria-live="polite">
+        <div class="alert alert-<?=htmlspecialchars($alertClass)?> d-flex align-items-center gap-2" role="status" aria-live="polite">
           <span class="material-symbols-rounded" aria-hidden="true">block</span>
-          <div class="fw-semibold">Access denied</div>
+          <div class="fw-semibold"><?=htmlspecialchars($meta['title'])?></div>
         </div>
-        <p class="mb-1">You are not authorized to access:</p>
-        <p class="h6 mb-3"><strong><?=htmlspecialchars($appName ?: 'this application')?></strong></p>
-        <p class="text-muted">If you believe this is an error, contact an administrator to request access.</p>
+        <?php if($appId): ?>
+          <p class="mb-1">Requested application:</p>
+          <p class="h6 mb-3"><strong><?=htmlspecialchars($app ? $appName : ('Unknown ('.$appId.')'))?></strong></p>
+        <?php endif; ?>
+        <p class="text-muted"><?=htmlspecialchars($meta['desc'])?></p>
         <div class="d-flex gap-2 mt-3">
           <a class="btn btn-primary" href="/profile.php">My Profile</a>
-          <a class="btn btn-outline-danger" href="/logout.php?app_id=<?=urlencode($appId)?>&return_url=<?=urlencode($return)?>">Back to Login</a>
+          <a class="btn btn-outline-danger" href="<?=htmlspecialchars($logoutHref)?>">Back to Login</a>
         </div>
       </div>
     </div>
