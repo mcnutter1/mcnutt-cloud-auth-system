@@ -182,7 +182,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   <div class="card auth-card overflow-hidden">
     <div class="card-body p-4 p-md-5">
       <div class="brand mb-3">
-        <div class="brand-mark"></div>
+        <div class="brand-mark">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1a3 3 0 0 0-3 3v2H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-1V4a3 3 0 0 0-3-3zm-2 5V4a2 2 0 1 1 4 0v2H6z"/></svg>
+        </div>
         <div>
           <div class="text-muted small">Please enter your details</div>
           <div class="brand-title">mcnutt.cloud</div>
@@ -199,6 +201,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
           <option value="magic">Magic Key</option>
         </select>
       </div>
+      <hr class="sep"/>
       <div id="group-pass">
         <div class="form-floating mb-3">
           <input type="text" class="form-control" id="f-user" name="username" placeholder="username" autocomplete="username" required>
@@ -221,10 +224,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       <div class="text-center mt-2"><a href="/forgot.php" class="small muted-link">Forgot your password?</a></div>
     </form>
     <div class="card-footer bg-light py-3">
-      <div class="small text-muted d-flex flex-wrap align-items-center gap-3">
-        <div>Client IP: <span class="text-body-secondary"><?=htmlspecialchars($clientIp)?></span></div>
-        <div>Connection: <span class="text-body-secondary"><?=htmlspecialchars($tlsProto ?: 'Unknown')?><?php if($cipherName): ?> · <?=htmlspecialchars($cipherName)?><?php endif; ?><?php if($keyBits): ?> · <?=htmlspecialchars($keyBits)?>-bit<?php endif; ?></span></div>
-        <div>Strength: <span class="badge text-bg-<?=$strengthClass?>"><?=$strength?></span></div>
+      <div class="small text-muted">
+        <strong>Security:</strong> <?=htmlspecialchars($tlsProto ?: 'HTTP')?><?php if($cipherName): ?> · <?=htmlspecialchars($cipherName)?><?php endif; ?><?php if($keyBits): ?> · <?=htmlspecialchars($keyBits)?>-bit<?php endif; ?> · IP <?=htmlspecialchars($clientIp)?>
       </div>
     </div>
   </div>
@@ -233,4 +234,5 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/assets/js/login.js"></script>
 </body></html>
