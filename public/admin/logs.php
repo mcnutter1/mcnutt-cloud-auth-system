@@ -31,9 +31,10 @@ $where = $w ? ('WHERE '.implode(' AND ',$w)) : '';
 if($fmt==='csv'){
   header('Content-Type: text/csv');
   header('Content-Disposition: attachment; filename="logs.csv"');
-  $sql = "SELECT id, ts, actor_type, actor_id, event, ip, detail FROM logs $where ORDER BY ts DESC, id DESC LIMIT ? OFFSET ?";
+  $limitSql = (int)$limit; $offsetSql=(int)$offset;
+  $sql = "SELECT id, ts, actor_type, actor_id, event, ip, detail FROM logs $where ORDER BY ts DESC, id DESC LIMIT $limitSql OFFSET $offsetSql";
   $st = $pdo->prepare($sql);
-  $pp = $p; $pp[]=$limit; $pp[]=$offset; $st->execute($pp);
+  $st->execute($p);
   $out = fopen('php://output','w');
   fputcsv($out, ['id','ts','actor_type','actor_id','event','ip','detail']);
   while($r=$st->fetch(PDO::FETCH_ASSOC)){
@@ -47,8 +48,9 @@ $countSt = $pdo->prepare("SELECT COUNT(*) FROM logs $where");
 $countSt->execute($p); $total = (int)$countSt->fetchColumn();
 
 // Page query
-$sql = "SELECT id, ts, actor_type, actor_id, event, ip, detail FROM logs $where ORDER BY ts DESC, id DESC LIMIT ? OFFSET ?";
-$st = $pdo->prepare($sql); $pp = $p; $pp[]=$limit; $pp[]=$offset; $st->execute($pp);
+$limitSql = (int)$limit; $offsetSql=(int)$offset;
+$sql = "SELECT id, ts, actor_type, actor_id, event, ip, detail FROM logs $where ORDER BY ts DESC, id DESC LIMIT $limitSql OFFSET $offsetSql";
+$st = $pdo->prepare($sql); $st->execute($p);
 $rows = $st->fetchAll(PDO::FETCH_ASSOC);
 
 // Distinct events for filter select
@@ -135,4 +137,3 @@ require_once __DIR__.'/_partials/header.php';
   </div>
 </div>
 <?php require __DIR__.'/_partials/footer.php'; ?>
-

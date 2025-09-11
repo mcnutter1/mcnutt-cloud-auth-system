@@ -2,6 +2,9 @@
 function require_admin(){
   session_start();
   if(!($_SESSION['is_admin'] ?? false)){
-    http_response_code(403); die('Forbidden');
+    $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']!=='off') ? 'https' : 'http';
+    $return = $scheme.'://'.($_SERVER['HTTP_HOST'] ?? 'localhost').($_SERVER['REQUEST_URI'] ?? '/');
+    header('Location: /?'.http_build_query(['return_url'=>$return]));
+    exit;
   }
 }
