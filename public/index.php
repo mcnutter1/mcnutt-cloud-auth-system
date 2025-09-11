@@ -6,6 +6,7 @@ require_once __DIR__.'/../src/models/MagicKeyModel.php';
 require_once __DIR__.'/../src/models/AppModel.php';
 require_once __DIR__.'/../src/auth_service.php';
 require_once __DIR__.'/../src/csrf.php';
+require_once __DIR__.'/../src/logger.php';
 
 $pdo = db();
 $auth = new AuthService($pdo, $CONFIG);
@@ -15,6 +16,19 @@ $keyModel  = new MagicKeyModel($pdo);
 
 $returnUrl = $_GET['return_url'] ?? null;
 $appId     = $_GET['app_id'] ?? null;
+
+// Security footer info (best-effort)
+$clientIp = ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? '') ? trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]) : ($_SERVER['REMOTE_ADDR'] ?? 'Unknown');
+$tlsProto = $_SERVER['SSL_PROTOCOL'] ?? ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']!=='off') ? 'TLS' : 'HTTP');
+$cipherName = $_SERVER['SSL_CIPHER'] ?? null;
+$keyBits = $_SERVER['SSL_CIPHER_USEKEYSIZE'] ?? ($_SERVER['SSL_CIPHER_ALGKEYSIZE'] ?? null);
+$strength = 'Unknown'; $strengthClass = 'secondary';
+if($tlsProto && strpos($tlsProto,'TLS')!==false){
+  $kb = (int)$keyBits;
+  if(strpos($tlsProto,'TLSv1.3')!==false || $kb>=256){ $strength='Strong'; $strengthClass='success'; }
+  elseif($kb>=128){ $strength='Moderate'; $strengthClass='warning'; }
+  else { $strength='Weak'; $strengthClass='danger'; }
+}
 
 $error = null; $ok=false; $principal=null; $user=null; $mk=null;
 
@@ -28,14 +42,18 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if($user && $user['is_active'] && password_verify($password, $user['password_hash'])){
       $ok=true; $principal=['type'=>'user','id'=>(int)$user['id']];
       session_start(); $_SESSION['ptype']='user'; $_SESSION['pid']=(int)$user['id']; $_SESSION['is_admin']=false;
+      log_event($pdo,'user',(int)$user['id'],'login.success',['mode'=>'password','app_id'=>$appId]);
     } else { $error='Invalid credentials.'; }
+    if(!$ok){ log_event($pdo,'system',null,'login.failed',['mode'=>'password','username'=>$username,'app_id'=>$appId]); }
   } else {
     $key = strtoupper(trim($_POST['magic_key'] ?? ''));
     $mk  = $keyModel->findByKey($key);
     if($mk && $mk['is_active'] && (is_null($mk['uses_allowed']) || $mk['uses_consumed'] < $mk['uses_allowed'])){
       $ok=true; $principal=['type'=>'magic','id'=>(int)$mk['id']];
       session_start(); $_SESSION['ptype']='magic'; $_SESSION['pid']=(int)$mk['id']; $_SESSION['is_admin']=false;
+      log_event($pdo,'magic',(int)$mk['id'],'login.success',['mode'=>'magic','app_id'=>$appId]);
     } else { $error='Invalid or exhausted magic key.'; }
+    if(!$ok){ log_event($pdo,'system',null,'login.failed',['mode'=>'magic','magic_key_suffix'=>substr($key,-5),'app_id'=>$appId]); }
   }
 
   if($ok){
@@ -77,15 +95,26 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   <title><?=htmlspecialchars($CONFIG['APP_NAME'])?></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="/assets/css/app.css" rel="stylesheet">
+  <meta name="theme-color" content="#0d6efd"/>
 </head><body>
-<nav class="navbar navbar-light bg-body-tertiary border-bottom"><div class="container">
-  <a class="navbar-brand" href="/"><?=htmlspecialchars($CONFIG['APP_NAME'])?></a>
-</div></nav>
-<div class="container py-5" style="max-width:560px;">
-  <div class="card shadow-sm rounded-4"><div class="card-body p-4">
-    <h1 class="h4 mb-4 text-center">Sign in</h1>
+<div class="login-hero d-flex align-items-center">
+  <div class="container" style="max-width: 520px;">
+  <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+    <div class="card-header bg-primary text-white py-3">
+      <div class="d-flex align-items-center">
+        <div class="rounded-circle bg-white me-2" style="width:36px;height:36px; display:flex; align-items:center; justify-content:center;">
+          <span class="text-primary fw-bold">MC</span>
+        </div>
+        <div>
+          <div class="fw-semibold small text-white-50">Secure Sign-in</div>
+          <div class="fw-bold"><?=htmlspecialchars($CONFIG['APP_NAME'])?></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body p-4 p-md-5">
+      <h1 class="h4 mb-4 text-center">Sign in</h1>
     <?php if($error): ?><div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
-    <ul class="nav nav-pills mb-3" role="tablist">
+    <ul class="nav nav-pills mb-3 justify-content-center" role="tablist">
       <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pane-pass" type="button">Username &amp; Password</button></li>
       <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pane-magic" type="button">Magic Key</button></li>
     </ul>
@@ -94,25 +123,36 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         <form method="post" autocomplete="off">
           <?php csrf_field(); ?>
           <input type="hidden" name="mode" value="password" />
-          <div class="mb-3"><label class="form-label">Username</label><input name="username" class="form-control" required /></div>
-          <div class="mb-3"><label class="form-label">Password</label><input name="password" type="password" class="form-control" required /></div>
+          <div class="mb-3"><label class="form-label">Username</label><input name="username" class="form-control form-control-lg" autocomplete="username" required /></div>
+          <div class="mb-3"><label class="form-label">Password</label><input name="password" type="password" class="form-control form-control-lg" autocomplete="current-password" required /></div>
           <input type="hidden" name="return_url" value="<?=htmlspecialchars($returnUrl ?? '')?>" />
           <input type="hidden" name="app_id" value="<?=htmlspecialchars($appId ?? '')?>" />
-          <button class="btn btn-primary w-100 mt-2">Sign in</button>
+          <button class="btn btn-primary btn-lg w-100 mt-2">Sign in</button>
         </form>
       </div>
       <div class="tab-pane fade" id="pane-magic">
         <form method="post" autocomplete="off">
           <?php csrf_field(); ?>
           <input type="hidden" name="mode" value="magic" />
-          <div class="mb-3"><label class="form-label">Magic Key</label><input name="magic_key" class="form-control" placeholder="ABCDE-FGHIJ-KLMNO-PQRST-UVWX" required /></div>
+          <div class="mb-3"><label class="form-label">Magic Key</label><input name="magic_key" class="form-control form-control-lg" placeholder="ABCDE-FGHIJ-KLMNO-PQRST-UVWX" required /></div>
           <input type="hidden" name="return_url" value="<?=htmlspecialchars($returnUrl ?? '')?>" />
           <input type="hidden" name="app_id" value="<?=htmlspecialchars($appId ?? '')?>" />
-          <button class="btn btn-primary w-100 mt-2">Sign in</button>
+          <button class="btn btn-primary btn-lg w-100 mt-2">Sign in</button>
         </form>
       </div>
     </div>
-  </div></div>
+    </div>
+    <div class="card-footer bg-light py-3">
+      <div class="small text-muted d-flex flex-wrap align-items-center gap-3">
+        <div>Client IP: <span class="text-body-secondary"><?=htmlspecialchars($clientIp)?></span></div>
+        <div>Connection: <span class="text-body-secondary"><?=htmlspecialchars($tlsProto ?: 'Unknown')?><?php if($cipherName): ?> · <?=htmlspecialchars($cipherName)?><?php endif; ?><?php if($keyBits): ?> · <?=htmlspecialchars($keyBits)?>-bit<?php endif; ?></span></div>
+        <div>Strength: <span class="badge text-bg-<?=$strengthClass?>"><?=$strength?></span></div>
+      </div>
+    </div>
+  </div>
+  <p class="text-center text-white-50 small mt-3 mb-0">By signing in you agree to our acceptable use policy.</p>
+  </div>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body></html>
