@@ -22,7 +22,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       if($app_id==='') throw new Exception('App ID cannot be empty.');
       $sql = 'UPDATE apps SET app_id=?, name=?, return_url=?, is_active=?, auto_login=?';
       $params = [$app_id,$name,$return_url,$is_active,$auto_login];
-      if($secret_plain!==''){ $sql .= ', secret_plain=?'; $params[] = $secret_plain; }
+      if($secret_plain!==''){ $sql .= ', secret_plain=?, secret_hash=?'; $params[] = $secret_plain; $params[] = hash('sha256',$secret_plain); }
       $sql .= ' WHERE id=?';
       $params[] = $id;
       $st = $pdo->prepare($sql);
@@ -31,8 +31,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     } else {
       if($app_id===''||$name===''||$return_url==='') throw new Exception('App ID, Name, and Return URL are required.');
       if($secret_plain==='') throw new Exception('Secret is required for new applications.');
-      $st=$pdo->prepare('INSERT INTO apps (app_id,name,return_url,secret_plain,is_active,auto_login) VALUES (?,?,?,?,?,?)');
-      $st->execute([$app_id,$name,$return_url,$secret_plain, $is_active,$auto_login]);
+      $secret_hash = hash('sha256',$secret_plain);
+      $st=$pdo->prepare('INSERT INTO apps (app_id,name,return_url,secret_hash,secret_plain,is_active,auto_login) VALUES (?,?,?,?,?,?,?)');
+      $st->execute([$app_id,$name,$return_url,$secret_hash,$secret_plain,$is_active,$auto_login]);
       $msg='App created.';
     }
   }catch(Throwable $e){ $err=$e->getMessage(); }

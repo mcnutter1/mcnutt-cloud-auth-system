@@ -178,8 +178,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       <div class="brand mb-3">
         <div class="brand-mark"><span class="material-symbols-rounded" aria-hidden="true">shield_lock</span></div>
         <div>
-          <div class="brand-headline">secure login</div>
           <div class="brand-sub">mcnutt.cloud</div>
+          <div class="brand-headline">secure login</div>
+          
         </div>
       </div>
     <?php if($appContext && ($appContext['is_active'] ?? 0)): ?>
@@ -227,7 +228,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       <div class="text-center mt-2"><a href="/forgot.php" class="small muted-link">Forgot your password?</a></div>
     </form>
   </div>
-  <p class="text-center text-muted small mt-3 mb-0">By signing in you agree to our acceptable use policy.</p>
   </div>
 </div>
 
