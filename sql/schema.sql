@@ -52,6 +52,7 @@ CREATE TABLE apps (
   id            BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   app_id        VARCHAR(64) NOT NULL UNIQUE,
   name          VARCHAR(255) NOT NULL,
+  icon          VARCHAR(32) NULL,
   return_url    VARCHAR(1024) NOT NULL,
   secret_hash   VARCHAR(255) NOT NULL,
   secret_plain  VARCHAR(255) NULL,

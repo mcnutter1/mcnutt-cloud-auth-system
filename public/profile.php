@@ -48,11 +48,11 @@ if($ptype==='user'){
 
 // Applications enabled for this principal
 if($ptype==='user'){
-  $qe=$pdo->prepare('SELECT a.name,a.app_id FROM apps a JOIN user_app_access uaa ON uaa.app_id=a.id WHERE uaa.user_id=? ORDER BY a.name');
+  $qe=$pdo->prepare('SELECT a.name,a.app_id,a.return_url,a.icon FROM apps a JOIN user_app_access uaa ON uaa.app_id=a.id WHERE uaa.user_id=? ORDER BY a.name');
   $qe->execute([$pid]);
   $appsEnabled=$qe->fetchAll(PDO::FETCH_ASSOC);
 } else {
-  $qe=$pdo->prepare('SELECT a.name,a.app_id FROM apps a JOIN magic_key_app_access mkaa ON mkaa.app_id=a.id WHERE mkaa.magic_key_id=? ORDER BY a.name');
+  $qe=$pdo->prepare('SELECT a.name,a.app_id,a.return_url,a.icon FROM apps a JOIN magic_key_app_access mkaa ON mkaa.app_id=a.id WHERE mkaa.magic_key_id=? ORDER BY a.name');
   $qe->execute([$pid]);
   $appsEnabled=$qe->fetchAll(PDO::FETCH_ASSOC);
 }
@@ -169,9 +169,14 @@ if($ptype==='user' && !empty($identity['username'])){
       <div class="card auth-card"><div class="card-body">
         <h2 class="h6 mb-2">Applications Enabled</h2>
         <?php if(!empty($appsEnabled)): ?>
-          <?php foreach($appsEnabled as $ae): ?>
-            <div class="small"><span class="badge text-bg-secondary me-1"><?=htmlspecialchars($ae['name'])?></span> <span class="text-muted"><?='('.htmlspecialchars($ae['app_id']).')'?></span></div>
-          <?php endforeach; ?>
+          <div class="app-tiles mt-2">
+            <?php foreach($appsEnabled as $ae): $ic = $ae['icon'] ?: '🧩'; ?>
+              <a class="app-tile" href="/?app_id=<?=urlencode($ae['app_id'])?>" title="<?=htmlspecialchars($ae['name'])?>">
+                <div class="app-icon"><?=htmlspecialchars($ic)?></div>
+                <div class="app-name"><?=htmlspecialchars($ae['name'])?></div>
+              </a>
+            <?php endforeach; ?>
+          </div>
         <?php else: ?>
           <div class="small text-muted">No applications enabled. Contact your administrator.</div>
         <?php endif; ?>

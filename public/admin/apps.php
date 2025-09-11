@@ -15,13 +15,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $app_id = trim($_POST['app_id'] ?? '');
     $name = trim($_POST['name'] ?? '');
     $return_url = trim($_POST['return_url'] ?? '');
+    $icon = trim($_POST['icon'] ?? '');
     $is_active = isset($_POST['is_active']) ? 1 : 0;
     $auto_login = isset($_POST['auto_login']) ? 1 : 0;
     $secret_plain = trim($_POST['secret'] ?? '');
     if($id){
       if($app_id==='') throw new Exception('App ID cannot be empty.');
-      $sql = 'UPDATE apps SET app_id=?, name=?, return_url=?, is_active=?, auto_login=?';
-      $params = [$app_id,$name,$return_url,$is_active,$auto_login];
+      $sql = 'UPDATE apps SET app_id=?, name=?, return_url=?, icon=?, is_active=?, auto_login=?';
+      $params = [$app_id,$name,$return_url,($icon!==''?$icon:null),$is_active,$auto_login];
       if($secret_plain!==''){ $sql .= ', secret_plain=?, secret_hash=?'; $params[] = $secret_plain; $params[] = hash('sha256',$secret_plain); }
       $sql .= ' WHERE id=?';
       $params[] = $id;
@@ -32,8 +33,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       if($app_id===''||$name===''||$return_url==='') throw new Exception('App ID, Name, and Return URL are required.');
       if($secret_plain==='') throw new Exception('Secret is required for new applications.');
       $secret_hash = hash('sha256',$secret_plain);
-      $st=$pdo->prepare('INSERT INTO apps (app_id,name,return_url,secret_hash,secret_plain,is_active,auto_login) VALUES (?,?,?,?,?,?,?)');
-      $st->execute([$app_id,$name,$return_url,$secret_hash,$secret_plain,$is_active,$auto_login]);
+      $st=$pdo->prepare('INSERT INTO apps (app_id,name,return_url,icon,secret_hash,secret_plain,is_active,auto_login) VALUES (?,?,?,?,?,?,?,?)');
+      $st->execute([$app_id,$name,$return_url,($icon!==''?$icon:null),$secret_hash,$secret_plain,$is_active,$auto_login]);
       $msg='App created.';
     }
   }catch(Throwable $e){ $err=$e->getMessage(); }
@@ -64,7 +65,7 @@ require_once __DIR__.'/_partials/header.php';
               <tr>
                 <td class="text-muted small"><?=$a['id']?></td>
                 <td class="font-monospace small"><?=htmlspecialchars($a['app_id'])?></td>
-                <td><?=htmlspecialchars($a['name'])?></td>
+                <td><?=htmlspecialchars($a['icon'] ?? '')?> <?=htmlspecialchars($a['name'])?></td>
                 <td class="small text-truncate" style="max-width:280px;" title="<?=htmlspecialchars($a['return_url'])?>"><?=htmlspecialchars($a['return_url'])?></td>
                 <td><?php if($a['is_active']): ?><span class="badge text-bg-success">Active</span><?php else: ?><span class="badge text-bg-secondary">Disabled</span><?php endif; ?></td>
                 <td class="text-end">
@@ -97,6 +98,18 @@ require_once __DIR__.'/_partials/header.php';
           <div class="mb-2"><label class="form-label">App ID</label><input class="form-control" name="app_id" id="f-appid" placeholder="e.g. photo-gallery" required/></div>
           <div class="mb-2"><label class="form-label">Name</label><input class="form-control" name="name" id="f-name" required/></div>
           <div class="mb-2"><label class="form-label">Return URL</label><input class="form-control" name="return_url" id="f-return" placeholder="https://app.example.com/sso/callback" required/></div>
+          <div class="mb-2"><label class="form-label">Icon</label>
+            <div class="d-flex gap-2 align-items-center">
+              <input class="form-control" name="icon" id="f-icon" placeholder="e.g. 🚀" style="max-width:140px"/>
+              <button class="btn btn-outline-secondary btn-sm" type="button" onclick="toggleIconPicker()">Choose</button>
+              <span class="small text-muted">Pick an emoji for this app</span>
+            </div>
+            <div id="icon-picker" class="border rounded p-2 mt-2" style="display:none; max-height:160px; overflow:auto;">
+              <?php $icons = '🚀,📸,🗂️,📦,📊,🛒,📝,🔐,💬,🎧,🎨,📅,📚,🧩,⚙️,📺,🛰️,🧪,🧾,🧑‍💻,🏷️,🗺️,🔔,📍,📁,🖼️,🧰,🔧,🛠️,💡,✨,🗳️,📨,🧭,📈,📉,🛰,🛞,🪄'; $icons = explode(',', $icons); foreach($icons as $ic): ?>
+                <button type="button" class="btn btn-light btn-sm m-1" onclick="selectIcon('<?=htmlspecialchars($ic, ENT_QUOTES)?>')" title="<?=htmlspecialchars($ic)?>" style="font-size:18px; line-height:1; width:36px; height:36px; padding:0;"><?=$ic?></button>
+              <?php endforeach; ?>
+            </div>
+          </div>
           <div class="mb-2"><label class="form-label">Secret</label>
             <div class="input-group">
               <input class="form-control" name="secret" id="f-secret" placeholder="64-hex or random string" required/>
@@ -123,6 +136,7 @@ function prefill(a){
   document.getElementById('f-appid').value=a.app_id;
   document.getElementById('f-name').value=a.name;
   document.getElementById('f-return').value=a.return_url;
+  document.getElementById('f-icon').value=a.icon||'';
   document.getElementById('f-active').checked = !!parseInt(a.is_active);
   document.getElementById('f-autologin').checked = !!parseInt(a.auto_login ?? 1);
   document.getElementById('f-secret').value='';
@@ -140,6 +154,13 @@ function genSecret(){
   else { for(let i=0;i<bytes.length;i++){ bytes[i]=Math.floor(Math.random()*256); } }
   const hex = Array.from(bytes).map(b=>b.toString(16).padStart(2,'0')).join('');
   document.getElementById('f-secret').value = hex;
+}
+function toggleIconPicker(){
+  const el = document.getElementById('icon-picker');
+  el.style.display = (el.style.display==='none'||!el.style.display) ? 'block' : 'none';
+}
+function selectIcon(ic){
+  document.getElementById('f-icon').value = ic;
 }
 </script>
 <?php require __DIR__.'/_partials/footer.php'; ?>

@@ -208,9 +208,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
           
         </div>
       </div>
-    <?php if($appContext && ($appContext['is_active'] ?? 0)): ?>
+    <?php if($appContext && ($appContext['is_active'] ?? 0)): $appIcon = $appContext['icon'] ?? null; ?>
       <div class="app-context alert alert-light border d-flex align-items-center gap-2 mb-3" role="status" aria-live="polite">
-        <span class="material-symbols-rounded text-primary" aria-hidden="true">apps</span>
+        <span class="text-primary" aria-hidden="true" style="font-size:20px; line-height:1; display:inline-block; width:20px; text-align:center;">
+          <?php echo htmlspecialchars($appIcon ?: '🧩'); ?>
+        </span>
         <div>
           <div class="small text-muted">Signing into</div>
           <div class="fw-semibold"><?=htmlspecialchars($appContext['name'] ?? $appId)?></div>
