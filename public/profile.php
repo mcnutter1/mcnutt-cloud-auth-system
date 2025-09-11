@@ -75,20 +75,27 @@ if($ptype==='user' && !empty($identity['username'])){
 <html lang="en"><head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>My Profile</title>
+  <title>mcnutt.cloud secure login · My Profile</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/assets/css/app.css" rel="stylesheet">
 </head><body>
-<nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom"><div class="container">
-  <a class="navbar-brand" href="/">Account</a>
-  <div class="ms-auto"><a class="btn btn-outline-danger btn-sm" href="/logout.php">Logout</a></div>
-</div></nav>
-<div class="container py-4" style="max-width: 820px;">
-  <h1 class="h4 mb-3">My Profile</h1>
+<div class="auth-bg py-4">
+  <div class="container" style="max-width: 920px;">
+  <div class="d-flex align-items-center mb-3">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div>
+        <div class="brand-title">mcnutt.cloud secure login</div>
+        <div class="text-muted small">My Profile</div>
+      </div>
+    </div>
+    <div class="ms-auto"><a class="btn btn-outline-danger btn-sm" href="/logout.php">Logout</a></div>
+  </div>
+  <div class="row g-4">
   <?php if($msg): ?><div class="alert alert-success"><?=htmlspecialchars($msg)?></div><?php endif; ?>
   <?php if($err): ?><div class="alert alert-danger"><?=htmlspecialchars($err)?></div><?php endif; ?>
-  <div class="row g-4">
     <div class="col-md-7">
-      <div class="card shadow-sm"><div class="card-body">
+      <div class="card auth-card"><div class="card-body">
         <h2 class="h6 mb-3">Profile</h2>
         <form method="post">
           <?php csrf_field(); ?>
@@ -102,7 +109,7 @@ if($ptype==='user' && !empty($identity['username'])){
     </div>
     <?php if($ptype==='user'): ?>
     <div class="col-md-5">
-      <div class="card shadow-sm"><div class="card-body">
+      <div class="card auth-card"><div class="card-body">
         <h2 class="h6 mb-3">Change Password</h2>
         <form method="post">
           <?php csrf_field(); ?>
@@ -120,7 +127,7 @@ if($ptype==='user' && !empty($identity['username'])){
   <?php if($ptype==='user'): ?>
   <div class="row g-4 mt-1">
     <div class="col-md-7">
-      <div class="card shadow-sm"><div class="card-body">
+      <div class="card auth-card"><div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <h2 class="h6 mb-0">Recent Logins</h2>
           <span class="small text-muted">Last 50</span>
@@ -143,7 +150,18 @@ if($ptype==='user' && !empty($identity['username'])){
       </div></div>
     </div>
     <div class="col-md-5">
-      <div class="card shadow-sm"><div class="card-body">
+      <div class="card auth-card"><div class="card-body">
+        <h2 class="h6 mb-2">Applications Enabled</h2>
+        <?php if(!empty($appsEnabled)): ?>
+          <?php foreach($appsEnabled as $ae): ?>
+            <div class="small"><span class="badge text-bg-secondary me-1"><?=htmlspecialchars($ae['name'])?></span> <span class="text-muted"><?='('.htmlspecialchars($ae['app_id']).')'?></span></div>
+          <?php endforeach; ?>
+        <?php else: ?>
+          <div class="small text-muted">No applications enabled. Contact your administrator.</div>
+        <?php endif; ?>
+      </div></div>
+
+      <div class="card auth-card mt-3"><div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <h2 class="h6 mb-0">Failed Attempts</h2>
           <span class="small text-muted">Last 25</span>
@@ -165,7 +183,7 @@ if($ptype==='user' && !empty($identity['username'])){
         </div>
       </div></div>
 
-      <div class="card shadow-sm mt-3"><div class="card-body">
+      <div class="card auth-card mt-3"><div class="card-body">
         <h2 class="h6 mb-2">Applications Used</h2>
         <?php if($appsUsed): ?>
           <?php foreach($appsUsed as $app=>$cnt): ?>
@@ -178,5 +196,6 @@ if($ptype==='user' && !empty($identity['username'])){
     </div>
   </div>
   <?php endif; ?>
+</div>
 </div>
 </body></html>

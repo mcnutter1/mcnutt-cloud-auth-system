@@ -14,21 +14,30 @@ if($appId){
 <html lang="en"><head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Access Denied</title>
+  <title>mcnutt.cloud secure login · Access Denied</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/assets/css/app.css" rel="stylesheet">
 </head><body>
-<div class="container py-5" style="max-width:720px;">
-  <div class="card shadow-sm border-0 rounded-4">
-    <div class="card-body p-4">
-      <h1 class="h4">Access Denied</h1>
-      <p class="text-muted">You are not authorized to access: <strong><?=htmlspecialchars($appName ?: 'this application')?></strong>.</p>
-      <p class="mb-3">If you believe this is an error, contact an administrator to request access.</p>
-      <div class="d-flex gap-2">
-        <a class="btn btn-primary" href="/profile.php">My Profile</a>
-        <a class="btn btn-outline-secondary" href="<?=htmlspecialchars($return)?>">Go Back</a>
+<div class="auth-bg d-flex align-items-center">
+  <div class="container" style="max-width:720px;">
+    <div class="card auth-card">
+      <div class="card-body p-4">
+        <div class="brand mb-3">
+          <div class="brand-mark"></div>
+          <div>
+            <div class="brand-title">mcnutt.cloud secure login</div>
+            <div class="text-muted small">Access Denied</div>
+          </div>
+        </div>
+        <p class="mb-1">You are not authorized to access:</p>
+        <p class="h6 mb-3"><strong><?=htmlspecialchars($appName ?: 'this application')?></strong></p>
+        <p class="text-muted">If you believe this is an error, contact an administrator to request access.</p>
+        <div class="d-flex gap-2 mt-3">
+          <a class="btn btn-primary" href="/profile.php">My Profile</a>
+          <a class="btn btn-outline-secondary" href="<?=htmlspecialchars($return)?>">Go Back</a>
+        </div>
       </div>
     </div>
   </div>
 </div>
 </body></html>
-

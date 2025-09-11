@@ -17,7 +17,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $return_url = trim($_POST['return_url'] ?? '');
     $is_active = isset($_POST['is_active']) ? 1 : 0;
     $auto_login = isset($_POST['auto_login']) ? 1 : 0;
-    $secret_plain = $_POST['secret'] ?? '';
+    $secret_plain = trim($_POST['secret'] ?? '');
     if($id){
       if($app_id==='') throw new Exception('App ID cannot be empty.');
       $sql = 'UPDATE apps SET app_id=?, name=?, return_url=?, is_active=?, auto_login=?';
@@ -30,8 +30,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       $msg='App updated.';
     } else {
       if($app_id===''||$name===''||$return_url==='') throw new Exception('App ID, Name, and Return URL are required.');
+      if($secret_plain==='') throw new Exception('Secret is required for new applications.');
       $st=$pdo->prepare('INSERT INTO apps (app_id,name,return_url,secret_plain,is_active,auto_login) VALUES (?,?,?,?,?,?)');
-      $st->execute([$app_id,$name,$return_url,$secret_plain?:null, $is_active,$auto_login]);
+      $st->execute([$app_id,$name,$return_url,$secret_plain, $is_active,$auto_login]);
       $msg='App created.';
     }
   }catch(Throwable $e){ $err=$e->getMessage(); }
@@ -95,7 +96,13 @@ require_once __DIR__.'/_partials/header.php';
           <div class="mb-2"><label class="form-label">App ID</label><input class="form-control" name="app_id" id="f-appid" placeholder="e.g. photo-gallery" required/></div>
           <div class="mb-2"><label class="form-label">Name</label><input class="form-control" name="name" id="f-name" required/></div>
           <div class="mb-2"><label class="form-label">Return URL</label><input class="form-control" name="return_url" id="f-return" placeholder="https://app.example.com/sso/callback" required/></div>
-          <div class="mb-2"><label class="form-label">Secret (optional)</label><input class="form-control" name="secret" id="f-secret" placeholder="Stored in DB if provided; env var takes precedence"/></div>
+          <div class="mb-2"><label class="form-label">Secret</label>
+            <div class="input-group">
+              <input class="form-control" name="secret" id="f-secret" placeholder="64-hex or random string" required/>
+              <button class="btn btn-outline-secondary" type="button" onclick="genSecret()">Generate</button>
+            </div>
+            <div class="form-text">Required. You can override via env var <code>APP_SECRET_{APP_ID_UPPER}</code>.</div>
+          </div>
           <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="is_active" id="f-active" checked><label class="form-check-label" for="f-active">Active</label></div>
           <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="auto_login" id="f-autologin" checked><label class="form-check-label" for="f-autologin">Auto-login if already authenticated</label></div>
           <div class="d-flex gap-2">
@@ -124,6 +131,14 @@ function resetForm(){
   document.getElementById('app-form').reset();
   document.getElementById('f-id').value='';
   document.getElementById('f-autologin').checked = true;
+}
+function genSecret(){
+  // Generate 64 hex chars (256-bit)
+  const bytes = new Uint8Array(32);
+  if(window.crypto && crypto.getRandomValues){ crypto.getRandomValues(bytes); }
+  else { for(let i=0;i<bytes.length;i++){ bytes[i]=Math.floor(Math.random()*256); } }
+  const hex = Array.from(bytes).map(b=>b.toString(16).padStart(2,'0')).join('');
+  document.getElementById('f-secret').value = hex;
 }
 </script>
 <?php require __DIR__.'/_partials/footer.php'; ?>

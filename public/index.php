@@ -98,10 +98,19 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   } else {
     $key = strtoupper(trim($_POST['magic_key'] ?? ''));
     $mk  = $keyModel->findByKey($key);
-    if($mk && $mk['is_active'] && (is_null($mk['uses_allowed']) || $mk['uses_consumed'] < $mk['uses_allowed'])){
-      $ok=true; $principal=['type'=>'magic','id'=>(int)$mk['id']];
-      session_start(); $_SESSION['ptype']='magic'; $_SESSION['pid']=(int)$mk['id']; $_SESSION['is_admin']=false;
-      log_event($pdo,'magic',(int)$mk['id'],'login.success',['mode'=>'magic','magic_key_suffix'=>substr($key,-5),'app_id'=>$appId]);
+    if($mk && $mk['is_active']){
+      // Atomically increment uses_consumed only if allowed
+      $st = $pdo->prepare("UPDATE magic_keys SET uses_consumed = uses_consumed + 1 WHERE id=? AND is_active=1 AND (uses_allowed IS NULL OR uses_consumed < uses_allowed)");
+      $st->execute([(int)$mk['id']]);
+      if($st->rowCount() === 1){
+        $ok=true; $principal=['type'=>'magic','id'=>(int)$mk['id']];
+        session_start(); $_SESSION['ptype']='magic'; $_SESSION['pid']=(int)$mk['id']; $_SESSION['is_admin']=false;
+        log_event($pdo,'magic',(int)$mk['id'],'login.success',[
+          'mode'=>'magic','magic_key_suffix'=>substr($key,-5),'app_id'=>$appId
+        ]);
+      } else {
+        $error='Invalid or exhausted magic key.';
+      }
     } else { $error='Invalid or exhausted magic key.'; }
     if(!$ok){ log_event($pdo,'system',null,'login.failed',['mode'=>'magic','magic_key_suffix'=>substr($key,-5),'app_id'=>$appId]); }
   }
@@ -163,29 +172,24 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 <html lang="en"><head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title><?=htmlspecialchars($CONFIG['APP_NAME'])?></title>
+  <title>mcnutt.cloud secure login</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="/assets/css/app.css" rel="stylesheet">
   <meta name="theme-color" content="#0d6efd"/>
 </head><body>
-<div class="login-hero d-flex align-items-center">
+<div class="auth-bg d-flex align-items-center">
   <div class="container" style="max-width: 520px;">
-  <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
-    <div class="card-header bg-primary text-white py-3">
-      <div class="d-flex align-items-center">
-        <div class="rounded-circle bg-white me-2" style="width:36px;height:36px; display:flex; align-items:center; justify-content:center;">
-          <span class="text-primary fw-bold">MC</span>
-        </div>
+  <div class="card auth-card overflow-hidden">
+    <div class="card-body p-4 p-md-5">
+      <div class="brand mb-3">
+        <div class="brand-mark"></div>
         <div>
-          <div class="fw-semibold small text-white-50">Secure Sign-in</div>
-          <div class="fw-bold"><?=htmlspecialchars($CONFIG['APP_NAME'])?></div>
+          <div class="brand-title">mcnutt.cloud secure login</div>
+          <div class="text-muted small">Sign in to continue</div>
         </div>
       </div>
-    </div>
-    <div class="card-body p-4 p-md-5">
-      <h1 class="h4 mb-4 text-center">Sign in</h1>
     <?php if($error): ?><div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
-    <ul class="nav nav-pills mb-3 justify-content-center" role="tablist">
+    <ul class="nav nav-pills mb-3" role="tablist">
       <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pane-pass" type="button">Username &amp; Password</button></li>
       <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pane-magic" type="button">Magic Key</button></li>
     </ul>
@@ -198,8 +202,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
           <div class="mb-3"><label class="form-label">Password</label><input name="password" type="password" class="form-control form-control-lg" autocomplete="current-password" required /></div>
           <input type="hidden" name="return_url" value="<?=htmlspecialchars($returnUrl ?? '')?>" />
           <input type="hidden" name="app_id" value="<?=htmlspecialchars($appId ?? '')?>" />
-          <button class="btn btn-primary btn-lg w-100 mt-2">Sign in</button>
-          <div class="text-center mt-2"><a href="/forgot.php" class="small">Forgot your password?</a></div>
+          <button class="btn btn-primary w-100 mt-2">Sign in</button>
+          <div class="text-center mt-2"><a href="/forgot.php" class="small muted-link">Forgot your password?</a></div>
         </form>
       </div>
       <div class="tab-pane fade" id="pane-magic">
@@ -209,10 +213,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
           <div class="mb-3"><label class="form-label">Magic Key</label><input name="magic_key" class="form-control form-control-lg" placeholder="ABCDE-FGHIJ-KLMNO-PQRST-UVWX" required /></div>
           <input type="hidden" name="return_url" value="<?=htmlspecialchars($returnUrl ?? '')?>" />
           <input type="hidden" name="app_id" value="<?=htmlspecialchars($appId ?? '')?>" />
-          <button class="btn btn-primary btn-lg w-100 mt-2">Sign in</button>
+          <button class="btn btn-primary w-100 mt-2">Sign in</button>
         </form>
       </div>
-    </div>
     </div>
     <div class="card-footer bg-light py-3">
       <div class="small text-muted d-flex flex-wrap align-items-center gap-3">
@@ -222,7 +225,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       </div>
     </div>
   </div>
-  <p class="text-center text-white-50 small mt-3 mb-0">By signing in you agree to our acceptable use policy.</p>
+  <p class="text-center text-muted small mt-3 mb-0">By signing in you agree to our acceptable use policy.</p>
   </div>
 </div>
 
