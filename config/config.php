@@ -11,5 +11,6 @@ return [
   'DB_NAME'=>envv('DB_NAME','login_sso'),
   'DB_USER'=>envv('DB_USER','root'),
   'DB_PASS'=>envv('DB_PASS',''),
+  'DB_SOCKET'=>envv('DB_SOCKET', null),
   'CSRF_SECRET'=>envv('CSRF_SECRET','changeme')
 ];
