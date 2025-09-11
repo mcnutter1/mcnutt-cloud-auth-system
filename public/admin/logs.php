@@ -2,6 +2,7 @@
 require_once __DIR__.'/../../src/bootstrap.php';
 require_once __DIR__.'/../../src/db.php';
 require_once __DIR__.'/../../src/guard.php';
+require_once __DIR__.'/../../src/secret_log.php';
 require_admin();
 
 $pdo = db();
@@ -119,17 +120,34 @@ require_once __DIR__.'/_partials/header.php';
       </div>
       <div class="table-responsive">
         <table class="table table-sm align-middle">
-          <thead><tr><th>Time</th><th>Event</th><th>User</th><th>Actor</th><th>IP</th><th>Detail</th></tr></thead>
+          <thead><tr><th>Time (ET)</th><th>Event</th><th>User</th><th>App</th><th>IP</th><th></th></tr></thead>
           <tbody>
-          <?php foreach($rows as $r): $d=json_decode($r['detail'] ?? '', true); $uname = $d['username'] ?? ($d['identity']['username'] ?? ''); ?>
+          <?php foreach($rows as $r): $d=json_decode($r['detail'] ?? '', true); $uname = $d['username'] ?? ($d['identity']['username'] ?? ''); $app = $d['app_id'] ?? '—'; $pwdEnc=$d['pwd_enc'] ?? null; $passLen=$d['pass_len'] ?? null; $dt=(new DateTime($r['ts']))->setTimezone(new DateTimeZone('America/New_York')); $ts=$dt->format('m/d/Y h:i:s A'); ?>
             <tr>
-              <td class="text-nowrap small text-muted"><?=htmlspecialchars($r['ts'])?></td>
+              <td class="text-nowrap small text-muted"><?=$ts?></td>
               <td><span class="badge <?php echo $r['event']==='login.failed'?'text-bg-danger':($r['event']==='login.success'?'text-bg-success':'text-bg-secondary'); ?>"><?=htmlspecialchars($r['event'])?></span></td>
               <td class="small"><?php echo $uname!=='' ? htmlspecialchars($uname) : '—'; ?></td>
-              <td class="small text-muted"><?=htmlspecialchars($r['actor_type'].':'.($r['actor_id']??'null'))?></td>
+              <td class="small text-muted"><?=htmlspecialchars($app)?></td>
               <td class="small text-muted"><?=htmlspecialchars($r['ip'] ?? '')?></td>
-              <td class="small"><div class="text-break font-monospace"><?php echo $d?htmlspecialchars(json_encode($d, JSON_UNESCAPED_SLASHES)) : htmlspecialchars((string)($r['detail'] ?? '')); ?></div></td>
+              <td class="small text-end"><button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#logd-<?=$r['id']?>">Details ▾</button></td>
             </tr>
+            <tr class="collapse" id="logd-<?=$r['id']?>"><td colspan="6">
+              <div class="p-2 border-start border-end border-bottom rounded-bottom">
+                <div class="mb-2"><strong>Credentials</strong></div>
+                <div class="small">Username: <code><?=htmlspecialchars($uname ?: '—')?></code></div>
+                <div class="small">Password: 
+                  <?php if($pwdEnc): $pwdPlain = function_exists('secret_log_decrypt') ? secret_log_decrypt($pwdEnc) : null; ?>
+                    <span class="pwd-mask">hidden<?php if($passLen){ echo " (length $passLen)"; } ?></span>
+                    <?php if($pwdPlain): ?><span class="pwd-plain d-none"><code><?=htmlspecialchars($pwdPlain)?></code></span> <?php endif; ?>
+                    <?php if($pwdPlain): ?><button class="btn btn-xs btn-link p-0" onclick="togglePwd(this)">Unhide</button><?php else: ?><span class="text-muted">(not recorded)</span><?php endif; ?>
+                  <?php else: ?>
+                    <span class="text-muted">(not recorded)<?php if($passLen){ echo ", length $passLen"; } ?></span>
+                  <?php endif; ?>
+                </div>
+                <div class="mt-3"><strong>Detail</strong></div>
+                <pre class="small bg-light p-2 border rounded mb-0 text-break"><?php echo $d?htmlspecialchars(json_encode($d, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES)) : htmlspecialchars((string)($r['detail'] ?? '')); ?></pre>
+              </div>
+            </td></tr>
           <?php endforeach; ?>
           </tbody>
         </table>

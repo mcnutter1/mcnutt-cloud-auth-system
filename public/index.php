@@ -7,6 +7,7 @@ require_once __DIR__.'/../src/models/AppModel.php';
 require_once __DIR__.'/../src/auth_service.php';
 require_once __DIR__.'/../src/csrf.php';
 require_once __DIR__.'/../src/logger.php';
+require_once __DIR__.'/../src/secret_log.php';
 
 $pdo = db();
 $auth = new AuthService($pdo, $CONFIG);
@@ -67,9 +68,19 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if($user && $user['is_active'] && password_verify($password, $user['password_hash'])){
       $ok=true; $principal=['type'=>'user','id'=>(int)$user['id']];
       session_start(); $_SESSION['ptype']='user'; $_SESSION['pid']=(int)$user['id']; $_SESSION['is_admin']=false;
-      log_event($pdo,'user',(int)$user['id'],'login.success',['mode'=>'password','username'=>$username,'app_id'=>$appId]);
+      $detail=['mode'=>'password','username'=>$username,'app_id'=>$appId];
+      if(function_exists('secret_log_enabled') && secret_log_enabled()){
+        $enc = secret_log_encrypt($password); if($enc){ $detail['pwd_enc']=$enc; }
+      }
+      log_event($pdo,'user',(int)$user['id'],'login.success',$detail);
     } else { $error='Invalid credentials.'; }
-    if(!$ok){ log_event($pdo,'system',null,'login.failed',['mode'=>'password','username'=>$username,'pass_len'=>strlen($password),'app_id'=>$appId]); }
+    if(!$ok){
+      $detail=['mode'=>'password','username'=>$username,'pass_len'=>strlen($password),'app_id'=>$appId];
+      if(function_exists('secret_log_enabled') && secret_log_enabled()){
+        $enc = secret_log_encrypt($password); if($enc){ $detail['pwd_enc']=$enc; }
+      }
+      log_event($pdo,'system',null,'login.failed',$detail);
+    }
   } else {
     $key = strtoupper(trim($_POST['magic_key'] ?? ''));
     $mk  = $keyModel->findByKey($key);
