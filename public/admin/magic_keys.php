@@ -96,8 +96,12 @@ require_once __DIR__.'/_partials/header.php';
   <?php if($msg): ?><div class="alert alert-success"><?=htmlspecialchars($msg)?></div><?php endif; ?>
   <?php if($err): ?><div class="alert alert-danger"><?=htmlspecialchars($err)?></div><?php endif; ?>
   <div class="row g-4">
-    <div class="col-lg-7">
+    <div class="col-12">
       <div class="card shadow-sm"><div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-semibold">All Magic Keys</div>
+          <button class="btn btn-sm btn-primary" type="button" onclick="openCreateModal()">Add</button>
+        </div>
         <div class="table-responsive">
           <table class="table align-middle mb-0">
             <thead><tr><th>ID</th><th>Holder</th><th>Key</th><th class="text-center">Uses</th><th class="text-center">Roles</th><th>Status</th><th></th></tr></thead>
@@ -106,7 +110,12 @@ require_once __DIR__.'/_partials/header.php';
               <tr>
                 <td class="text-muted small"><?=$r['id']?></td>
                 <td><div class="fw-semibold"><?=htmlspecialchars($r['name'])?></div><div class="text-muted small"><?=htmlspecialchars($r['email'])?></div></td>
-                <td class="font-monospace small"><?=htmlspecialchars($r['magic_key'])?></td>
+                <td class="font-monospace small">
+                  <?=htmlspecialchars($r['magic_key'])?>
+                  <button type="button" class="btn btn-light btn-sm ms-1" title="Copy" onclick="copyKey('<?=htmlspecialchars($r['magic_key'])?>', this)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M10 1.5A1.5 1.5 0 0 1 11.5 3v7A1.5 1.5 0 0 1 10 11.5H4A1.5 1.5 0 0 1 2.5 10V3A1.5 1.5 0 0 1 4 1.5h6zM4 0a3 3 0 0 0-3 3v7a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V3a3 3 0 0 0-3-3H4z"/><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3h6A1.5 1.5 0 0 1 14 4.5v7A1.5 1.5 0 0 1 12.5 13h-6A1.5 1.5 0 0 1 5 11.5v-7z"/></svg>
+                  </button>
+                </td>
                 <td class="text-center"><span class="badge text-bg-secondary"><?=(int)$r['uses_consumed']?></span></td>
                 <td class="text-muted small text-center"><?=$r['role_count']?></td>
                 <td><?php if($r['is_active']): ?><span class="badge text-bg-success">Active</span><?php else: ?><span class="badge text-bg-secondary">Disabled</span><?php endif; ?></td>
@@ -133,24 +142,28 @@ require_once __DIR__.'/_partials/header.php';
         </div>
       </div></div>
     </div>
-    <div class="col-lg-5">
-      <div class="card shadow-sm"><div class="card-body">
-        <h2 class="h6 mb-3" id="form-title">Create Magic Key</h2>
-        <form method="post" autocomplete="off" id="mk-form">
+  </div>
+</div>
+<!-- Modal for Create/Edit Magic Key -->
+<div class="modal fade" id="mkModal" tabindex="-1" aria-labelledby="mkModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="mkModalLabel">Create Magic Key</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" autocomplete="off" id="mk-form">
+        <div class="modal-body">
           <?php csrf_field(); ?>
+          <input type="hidden" name="action" value="save"/>
           <input type="hidden" name="id" id="f-id" value=""/>
-          <div class="mb-2"><label class="form-label">Email</label><input name="email" id="f-email" type="email" class="form-control" required/></div>
-          <div class="mb-2"><label class="form-label">Name</label><input name="name" id="f-name" class="form-control" required/></div>
-          <div class="mb-2"><label class="form-label">Phone</label><input name="phone" id="f-phone" class="form-control"/></div>
-          <div class="mb-2"><label class="form-label">Magic Key</label>
-            <div class="input-group">
-              <input name="magic_key" id="f-magic" class="form-control" placeholder="ABCDE-FGHIJ-KLMNO-PQRST-UVWX" required/>
-              <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('f-magic').value=genKey()">Generate</button>
-            </div>
-          </div>
           <div class="row g-2">
-            <div class="col-6"><label class="form-label">Uses allowed</label><input name="uses_allowed" id="f-uses" type="number" min="1" class="form-control" placeholder="unlimited if blank"/></div>
-            <div class="col-6"><label class="form-label">Owner (optional)</label>
+            <div class="col-md-6"><label class="form-label">Email</label><input name="email" id="f-email" type="email" class="form-control" required/></div>
+            <div class="col-md-6"><label class="form-label">Name</label><input name="name" id="f-name" class="form-control" required/></div>
+          </div>
+          <div class="row g-2 mt-1">
+            <div class="col-md-6"><label class="form-label">Phone</label><input name="phone" id="f-phone" class="form-control"/></div>
+            <div class="col-md-6"><label class="form-label">Owner (optional)</label>
               <select name="owner_user_id" id="f-owner" class="form-select">
                 <option value="">—</option>
                 <?php foreach($users as $u): ?>
@@ -159,8 +172,17 @@ require_once __DIR__.'/_partials/header.php';
               </select>
             </div>
           </div>
-          <div class="form-check mt-2 mb-3"><input type="checkbox" class="form-check-input" id="f-active" name="is_active" checked><label class="form-check-label" for="f-active">Active</label></div>
-          <div class="mb-3">
+          <div class="mt-2"><label class="form-label">Magic Key</label>
+            <div class="input-group">
+              <input name="magic_key" id="f-magic" class="form-control" placeholder="ABCDE-FGHIJ-KLMNO-PQRST-UVWX" required/>
+              <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('f-magic').value=genKey()">Generate</button>
+            </div>
+          </div>
+          <div class="row g-2 mt-1">
+            <div class="col-md-6"><label class="form-label">Uses allowed</label><input name="uses_allowed" id="f-uses" type="number" min="1" class="form-control" placeholder="unlimited if blank"/></div>
+            <div class="col-md-6 d-flex align-items-end"><div class="form-check ms-1"><input type="checkbox" class="form-check-input" id="f-active" name="is_active" checked><label class="form-check-label" for="f-active">Active</label></div></div>
+          </div>
+          <div class="mt-3">
             <div class="form-label">Roles</div>
             <?php foreach($roles as $r): ?>
               <div class="form-check form-check-inline">
@@ -169,7 +191,7 @@ require_once __DIR__.'/_partials/header.php';
               </div>
             <?php endforeach; ?>
           </div>
-          <div class="mb-3">
+          <div class="mt-3">
             <div class="form-label">Applications</div>
             <?php foreach($apps as $a): ?>
               <div class="form-check form-check-inline">
@@ -179,15 +201,16 @@ require_once __DIR__.'/_partials/header.php';
             <?php endforeach; ?>
             <div class="form-text">No apps selected = no access (deny by default).</div>
           </div>
-          <div class="d-flex gap-2">
-            <button class="btn btn-primary">Save</button>
-            <button class="btn btn-secondary" type="button" onclick="resetForm()">Reset</button>
-          </div>
-        </form>
-      </div></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary">Save</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
+
 <script>
 function genKey(){
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -195,7 +218,7 @@ function genKey(){
   return s.slice(0,5)+'-'+s.slice(5,10)+'-'+s.slice(10,15)+'-'+s.slice(15,20)+'-'+s.slice(20,25);
 }
 function prefill(r){
-  document.getElementById('form-title').innerText='Edit Magic Key';
+  document.getElementById('mkModalLabel').innerText='Edit Magic Key';
   document.getElementById('f-id').value=r.id;
   document.getElementById('f-email').value=r.email;
   document.getElementById('f-name').value=r.name;
@@ -206,11 +229,21 @@ function prefill(r){
   document.getElementById('f-active').checked = !!parseInt(r.is_active);
   // clear roles (not fetched here)
   document.querySelectorAll('input[name="roles[]"]').forEach(b=>b.checked=false);
+  const modal = new bootstrap.Modal(document.getElementById('mkModal')); modal.show();
 }
 function resetForm(){
-  document.getElementById('form-title').innerText='Create Magic Key';
+  document.getElementById('mkModalLabel').innerText='Create Magic Key';
   document.getElementById('mk-form').reset();
   document.getElementById('f-id').value='';
+}
+function openCreateModal(){ resetForm(); const modal = new bootstrap.Modal(document.getElementById('mkModal')); modal.show(); }
+function copyKey(val, btn){
+  navigator.clipboard?.writeText(val).then(()=>{
+    const prev = btn.innerHTML; btn.classList.remove('btn-light'); btn.classList.add('btn-success'); btn.textContent='Copied';
+    setTimeout(()=>{ btn.classList.remove('btn-success'); btn.classList.add('btn-light'); btn.innerHTML=prev; }, 1200);
+  }).catch(()=>{
+    alert('Copy failed');
+  });
 }
 </script>
 <?php require __DIR__.'/_partials/footer.php'; ?>
