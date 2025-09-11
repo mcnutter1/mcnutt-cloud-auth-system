@@ -100,7 +100,12 @@ if($ptype==='user' && !empty($identity['username'])){
         <div class="text-muted small">My Profile</div>
       </div>
     </div>
-    <div class="ms-auto"><a class="btn btn-outline-danger btn-sm" href="/logout.php">Logout</a></div>
+    <div class="ms-auto d-flex gap-2">
+      <?php if(!empty($_SESSION['is_admin'])): ?>
+        <a class="btn btn-outline-primary btn-sm" href="/admin/">Admin</a>
+      <?php endif; ?>
+      <a class="btn btn-outline-danger btn-sm" href="/logout.php">Logout</a>
+    </div>
   </div>
   <div class="row g-4">
   <?php if($msg): ?><div class="alert alert-success"><?=htmlspecialchars($msg)?></div><?php endif; ?>

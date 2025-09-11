@@ -24,7 +24,7 @@ $identity = $auth['identity'];
   <a class="navbar-brand" href="/test/">Test Application</a>
   <div class="ms-auto d-flex gap-2">
     <a class="btn btn-outline-secondary btn-sm" href="/test/">Home</a>
-    <a class="btn btn-outline-danger btn-sm" href="/test/logout.php">Logout</a>
+    <a class="btn btn-outline-danger btn-sm" href="/test/auth.php?logout=1">Logout</a>
   </div>
 </div></nav>
 <div class="container py-4" style="max-width: 820px;">

@@ -65,3 +65,40 @@ function logout_everywhere(){
   if($cookie){ $data=json_decode($cookie,true); @file_get_contents($config['logout_endpoint'].'?token='.urlencode($data['session_token'])); }
   set_cookie_c($config['cookie_name'], '', -3600, $config['cookie_domain']);
 }
+
+// Start the SSO logout flow using the server's logout confirmation UI.
+// If a session token exists, redirect to {login_base}/logout_confirm.php with token and return_url.
+// Otherwise, clear local cookie and redirect back to the provided return URL (or '/').
+function initiate_logout(string $returnUrl = null){
+  global $config;
+  // Determine a sane default return URL (app home) if not provided
+  if($returnUrl === null){
+    $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']!=='off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $base = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? '/'), '/');
+    if($base === '' || $base === '.') $base = '/';
+    $returnUrl = $scheme.'://'.$host.$base.'/';
+  }
+  $cookie = $_COOKIE[$config['cookie_name']] ?? null;
+  if($cookie){
+    $data = json_decode($cookie,true);
+    if(isset($data['session_token']) && $data['session_token']){
+      $dest = rtrim($config['login_base'],'/').'/logout_confirm.php?token='.urlencode($data['session_token']).'&return_url='.urlencode($returnUrl);
+      header('Location: '.$dest); exit;
+    }
+  }
+  // Fallback: no cookie or no token; clear and go back
+  set_cookie_c($config['cookie_name'], '', -3600, $config['cookie_domain']);
+  header('Location: '.$returnUrl); exit;
+}
+
+// Convenience handler you can call from /logout.php
+function handle_logout_request(){
+  $ret = $_GET['return_url'] ?? null; // allow override via query
+  initiate_logout($ret);
+}
+
+// Auto-handle logout when invoked with ?logout, even when included.
+if (isset($_GET['logout'])) {
+  handle_logout_request(); // exits after redirect
+}
