@@ -16,23 +16,19 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $name = trim($_POST['name'] ?? '');
     $return_url = trim($_POST['return_url'] ?? '');
     $is_active = isset($_POST['is_active']) ? 1 : 0;
-    $secret = $_POST['secret'] ?? '';
-    $secret_hash = null;
-    if($secret!==''){
-      $secret_hash = 'sha256:'.hash('sha256', $secret);
-    }
+    $secret_plain = $_POST['secret'] ?? '';
     if($id){
       if($app_id==='') throw new Exception('App ID cannot be empty.');
-      $st=$pdo->prepare('UPDATE apps SET app_id=?, name=?, return_url=?, is_active=?'+($secret_hash? ', secret_hash=?':'').' WHERE id=?');
+      $st=$pdo->prepare('UPDATE apps SET app_id=?, name=?, return_url=?, is_active=?'+($secret_plain? ', secret_plain=?':'').' WHERE id=?');
       $params=[$app_id,$name,$return_url,$is_active];
-      if($secret_hash){ $params[]=$secret_hash; }
+      if($secret_plain){ $params[]=$secret_plain; }
       $params[]=$id;
       $st->execute($params);
       $msg='App updated.';
     } else {
       if($app_id===''||$name===''||$return_url==='') throw new Exception('App ID, Name, and Return URL are required.');
-      $st=$pdo->prepare('INSERT INTO apps (app_id,name,return_url,secret_hash,is_active) VALUES (?,?,?,?,?)');
-      $st->execute([$app_id,$name,$return_url,$secret_hash?:'', $is_active]);
+      $st=$pdo->prepare('INSERT INTO apps (app_id,name,return_url,secret_plain,is_active) VALUES (?,?,?,?,?)');
+      $st->execute([$app_id,$name,$return_url,$secret_plain?:null, $is_active]);
       $msg='App created.';
     }
   }catch(Throwable $e){ $err=$e->getMessage(); }
@@ -79,7 +75,7 @@ require_once __DIR__.'/_partials/header.php';
               </tr>
               <tr class="table-light"><td></td><td colspan="5" class="small">
                 <div><span class="text-muted">Env secret key:</span> <code><?=$envkey?></code> — present: <strong><?=$hasEnv?></strong></div>
-                <?php if($a['secret_hash']): ?><div><span class="text-muted">Stored secret hash:</span> <code><?=htmlspecialchars($a['secret_hash'])?></code></div><?php endif; ?>
+                <?php if(!empty($a['secret_plain'])): ?><div><span class="text-muted">Stored secret (DB):</span> <code><?=str_repeat('•', max(8, strlen($a['secret_plain'])))?></code></div><?php endif; ?>
               </td></tr>
             <?php endforeach; ?>
             </tbody>
@@ -125,4 +121,3 @@ function resetForm(){
 }
 </script>
 <?php require __DIR__.'/_partials/footer.php'; ?>
-

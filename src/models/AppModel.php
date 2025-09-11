@@ -8,6 +8,8 @@ class AppModel {
   public function getSecretForVerify(array $app): string {
     $envKey = 'APP_SECRET_'.strtoupper(str_replace(['-',' '],'_',$app['app_id']));
     $secret = getenv($envKey) ?: null;
+    // Fallback: allow secret from DB if present (plaintext)
+    if(!$secret) { $secret = $app['secret_plain'] ?? null; }
     if(!$secret) { die('App secret not configured'); }
     return $secret;
   }

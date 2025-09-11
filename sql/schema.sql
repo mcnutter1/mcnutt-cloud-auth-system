@@ -54,6 +54,7 @@ CREATE TABLE apps (
   name          VARCHAR(255) NOT NULL,
   return_url    VARCHAR(1024) NOT NULL,
   secret_hash   VARCHAR(255) NOT NULL,
+  secret_plain  VARCHAR(255) NULL,
   is_active     TINYINT(1) NOT NULL DEFAULT 1,
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
