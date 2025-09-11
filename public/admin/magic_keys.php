@@ -16,6 +16,7 @@ function generate_key(): string {
 }
 
 $roles = $pdo->query("SELECT id,name FROM roles ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+$apps  = $pdo->query("SELECT id, app_id, name FROM apps WHERE is_active=1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
 $users = $pdo->query("SELECT id,username,name FROM users WHERE is_active=1 ORDER BY username")->fetchAll(PDO::FETCH_ASSOC);
 
 if($_SERVER['REQUEST_METHOD']==='POST'){
@@ -32,6 +33,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $owner_user_id = ($owner_user_id==='') ? null : (int)$owner_user_id;
     $is_active = isset($_POST['is_active']) ? 1 : 0;
     $sel_roles = array_map('intval', $_POST['roles'] ?? []);
+    $sel_apps  = array_map('intval', $_POST['apps']  ?? []);
 
     if($email==='' || $name==='' || $magic_key==='') throw new Exception('Email, Name, and Magic Key are required.');
     if(strlen($magic_key)!==29) throw new Exception('Magic key must be in format AAAAA-BBBBB-CCCCC-DDDDD-EEEEE');
@@ -52,6 +54,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if($sel_roles){
       $ins=$pdo->prepare("INSERT IGNORE INTO magic_key_roles (magic_key_id,role_id) VALUES (?,?)");
       foreach($sel_roles as $rid){ $ins->execute([$mkId,$rid]); }
+    }
+    // Update app mappings (deny-by-default)
+    $pdo->prepare("DELETE FROM magic_key_app_access WHERE magic_key_id=?")->execute([$mkId]);
+    if($sel_apps){
+      $ins=$pdo->prepare("INSERT IGNORE INTO magic_key_app_access (magic_key_id,app_id) VALUES (?,?)");
+      foreach($sel_apps as $aid){ $ins->execute([$mkId,$aid]); }
     }
 
     $pdo->commit();
@@ -144,6 +152,16 @@ require_once __DIR__.'/_partials/header.php';
               </div>
             <?php endforeach; ?>
           </div>
+          <div class="mb-3">
+            <div class="form-label">Applications</div>
+            <?php foreach($apps as $a): ?>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" name="apps[]" value="<?=$a['id']?>" id="app-<?=$a['id']?>">
+                <label class="form-check-label" for="app-<?=$a['id']?>"><?=htmlspecialchars($a['name'])?> <span class="text-muted small ms-1"><?='('.htmlspecialchars($a['app_id']).')'?></span></label>
+              </div>
+            <?php endforeach; ?>
+            <div class="form-text">No apps selected = no access (deny by default).</div>
+          </div>
           <div class="d-flex gap-2">
             <button class="btn btn-primary">Save</button>
             <button class="btn btn-secondary" type="button" onclick="resetForm()">Reset</button>
@@ -179,4 +197,3 @@ function resetForm(){
 }
 </script>
 <?php require __DIR__.'/_partials/footer.php'; ?>
-

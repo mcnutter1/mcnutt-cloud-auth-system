@@ -173,6 +173,17 @@ function prefillUser(data){
       if(el) el.checked=true;
     });
   }
+  // Load and set app selections from server to reflect DB truth
+  fetch('/admin/api/user_apps.php?user_id='+encodeURIComponent(data.id))
+    .then(r=>r.ok?r.json():{apps:[]})
+    .then(j=>{
+      var aboxes = document.querySelectorAll('input[name="apps[]"]');
+      aboxes.forEach(b=>b.checked=false);
+      (j.apps||[]).forEach(id=>{
+        var el = document.querySelector('input[name="apps[]"][value="'+id+'"]');
+        if(el) el.checked = true;
+      });
+    }).catch(()=>{});
 }
 function resetForm(){
   document.getElementById('form-title').innerText='Create User';
