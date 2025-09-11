@@ -51,9 +51,13 @@ if($_SERVER['REQUEST_METHOD']!=='POST' && $appId && isset($_SESSION['ptype'], $_
       $allowed = ((int)$st->fetchColumn())>0;
     }
     if(!$allowed){
+      // Log access denied due to app permissions (auto-login path)
+      log_event($pdo, $_SESSION['ptype'], (int)$_SESSION['pid'], 'access.denied', ['app_id'=>$appId, 'app_db_id'=>$aid, 'via'=>'auto_login']);
       header('Location: /access_denied.php?app_id='.urlencode($appId).'&return_url='.urlencode($returnUrl ?: $app['return_url']));
       exit;
     }
+    // Log access authorized
+    log_event($pdo, $_SESSION['ptype'], (int)$_SESSION['pid'], 'access.authorized', ['app_id'=>$appId, 'app_db_id'=>$aid, 'via'=>'auto_login']);
     $ptype=$_SESSION['ptype']; $pid=(int)$_SESSION['pid'];
     $principal=['type'=>$ptype,'id'=>$pid];
     $sess = $auth->issueSession($principal['type'], $principal['id'], null, (int)$CONFIG['SESSION_TTL_MIN']);
@@ -130,9 +134,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $st->execute([$principal['id'],$aid]); $allowed=((int)$st->fetchColumn())>0;
       }
       if(!$allowed){
+        // Log access denied due to app permissions (post-login path)
+        log_event($pdo, $principal['type'], (int)$principal['id'], 'access.denied', ['app_id'=>$appId, 'app_db_id'=>$aid, 'via'=>'login']);
         header('Location: /access_denied.php?app_id='.urlencode($appId).'&return_url='.urlencode($returnUrl ?: $app['return_url']));
         exit;
       }
+      // Log access authorized
+      log_event($pdo, $principal['type'], (int)$principal['id'], 'access.authorized', ['app_id'=>$appId, 'app_db_id'=>$aid, 'via'=>'login']);
       $secret = $appModel->getSecretForVerify($app);
       require_once __DIR__.'/../src/crypto.php';
       $json = json_encode($payload, JSON_UNESCAPED_SLASHES);

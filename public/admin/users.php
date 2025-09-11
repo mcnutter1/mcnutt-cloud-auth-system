@@ -135,6 +135,16 @@ require_once __DIR__.'/_partials/header.php';
               </div>
             <?php endforeach; ?>
           </div>
+          <div class="mb-3">
+            <div class="form-label">Applications</div>
+            <?php foreach($apps as $a): ?>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" name="apps[]" value="<?=$a['id']?>" id="app-<?=$a['id']?>">
+                <label class="form-check-label" for="app-<?=$a['id']?>"><?=htmlspecialchars($a['name'])?> <span class="text-muted small ms-1"><?='('.htmlspecialchars($a['app_id']).')'?></span></label>
+              </div>
+            <?php endforeach; ?>
+            <div class="form-text">No apps selected = no access (deny by default).</div>
+          </div>
           <div class="d-flex gap-2">
             <button class="btn btn-primary">Save</button>
             <button class="btn btn-secondary" type="button" onclick="resetForm()">Reset</button>
