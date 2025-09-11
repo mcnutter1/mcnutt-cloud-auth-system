@@ -19,7 +19,7 @@ $roles = $pdo->query("SELECT id,name FROM roles ORDER BY name")->fetchAll(PDO::F
 $apps  = $pdo->query("SELECT id, app_id, name FROM apps WHERE is_active=1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
 $users = $pdo->query("SELECT id,username,name FROM users WHERE is_active=1 ORDER BY username")->fetchAll(PDO::FETCH_ASSOC);
 
-if($_SERVER['REQUEST_METHOD']==='POST'){
+if($_SERVER['REQUEST_METHOD']==='POST' && (!isset($_POST['action']) || $_POST['action']==='save')){
   csrf_validate();
   try{
     $id = isset($_POST['id']) && $_POST['id']!=='' ? (int)$_POST['id'] : null;
@@ -77,6 +77,16 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action']) && $_POST['act
   }catch(Throwable $e){ $err=$e->getMessage(); }
 }
 
+// Reset uses counter
+if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action']) && $_POST['action']==='reset_uses'){
+  csrf_validate();
+  try{
+    $id=(int)$_POST['id'];
+    $pdo->prepare("UPDATE magic_keys SET uses_consumed=0 WHERE id=?")->execute([$id]);
+    $msg='Usage counter reset.';
+  }catch(Throwable $e){ $err=$e->getMessage(); }
+}
+
 $rows = $pdo->query("SELECT mk.*, (SELECT COUNT(*) FROM magic_key_roles mkr WHERE mkr.magic_key_id=mk.id) role_count FROM magic_keys mk ORDER BY mk.created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
 
 require_once __DIR__.'/_partials/header.php';
@@ -90,14 +100,15 @@ require_once __DIR__.'/_partials/header.php';
       <div class="card shadow-sm"><div class="card-body">
         <div class="table-responsive">
           <table class="table align-middle mb-0">
-            <thead><tr><th>ID</th><th>Holder</th><th>Key</th><th>Roles</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>ID</th><th>Holder</th><th>Key</th><th class="text-center">Uses</th><th class="text-center">Roles</th><th>Status</th><th></th></tr></thead>
             <tbody>
             <?php foreach($rows as $r): ?>
               <tr>
                 <td class="text-muted small"><?=$r['id']?></td>
                 <td><div class="fw-semibold"><?=htmlspecialchars($r['name'])?></div><div class="text-muted small"><?=htmlspecialchars($r['email'])?></div></td>
                 <td class="font-monospace small"><?=htmlspecialchars($r['magic_key'])?></td>
-                <td class="text-muted small"><?=$r['role_count']?></td>
+                <td class="text-center"><span class="badge text-bg-secondary"><?=(int)$r['uses_consumed']?></span></td>
+                <td class="text-muted small text-center"><?=$r['role_count']?></td>
                 <td><?php if($r['is_active']): ?><span class="badge text-bg-success">Active</span><?php else: ?><span class="badge text-bg-secondary">Disabled</span><?php endif; ?></td>
                 <td class="text-end">
                   <button class="btn btn-sm btn-outline-primary" type="button" onclick='prefill(<?=json_encode($r)?>)'>Edit</button>
@@ -107,6 +118,12 @@ require_once __DIR__.'/_partials/header.php';
                     <input type="hidden" name="id" value="<?=$r['id']?>"/>
                     <input type="hidden" name="active" value="<?=$r['is_active']?0:1?>"/>
                     <button class="btn btn-sm <?=$r['is_active']?'btn-outline-warning':'btn-outline-success'?>" onclick="return confirm('Are you sure?')"><?php echo $r['is_active']?'Disable':'Enable'; ?></button>
+                  </form>
+                  <form method="post" class="d-inline ms-1">
+                    <?php csrf_field(); ?>
+                    <input type="hidden" name="action" value="reset_uses"/>
+                    <input type="hidden" name="id" value="<?=$r['id']?>"/>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="return confirm('Reset usage counter to 0?')">Reset Counter</button>
                   </form>
                 </td>
               </tr>
