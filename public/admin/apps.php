@@ -16,11 +16,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $name = trim($_POST['name'] ?? '');
     $return_url = trim($_POST['return_url'] ?? '');
     $is_active = isset($_POST['is_active']) ? 1 : 0;
+    $auto_login = isset($_POST['auto_login']) ? 1 : 0;
     $secret_plain = $_POST['secret'] ?? '';
     if($id){
       if($app_id==='') throw new Exception('App ID cannot be empty.');
-      $sql = 'UPDATE apps SET app_id=?, name=?, return_url=?, is_active=?';
-      $params = [$app_id,$name,$return_url,$is_active];
+      $sql = 'UPDATE apps SET app_id=?, name=?, return_url=?, is_active=?, auto_login=?';
+      $params = [$app_id,$name,$return_url,$is_active,$auto_login];
       if($secret_plain!==''){ $sql .= ', secret_plain=?'; $params[] = $secret_plain; }
       $sql .= ' WHERE id=?';
       $params[] = $id;
@@ -29,8 +30,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       $msg='App updated.';
     } else {
       if($app_id===''||$name===''||$return_url==='') throw new Exception('App ID, Name, and Return URL are required.');
-      $st=$pdo->prepare('INSERT INTO apps (app_id,name,return_url,secret_plain,is_active) VALUES (?,?,?,?,?)');
-      $st->execute([$app_id,$name,$return_url,$secret_plain?:null, $is_active]);
+      $st=$pdo->prepare('INSERT INTO apps (app_id,name,return_url,secret_plain,is_active,auto_login) VALUES (?,?,?,?,?,?)');
+      $st->execute([$app_id,$name,$return_url,$secret_plain?:null, $is_active,$auto_login]);
       $msg='App created.';
     }
   }catch(Throwable $e){ $err=$e->getMessage(); }
@@ -95,7 +96,8 @@ require_once __DIR__.'/_partials/header.php';
           <div class="mb-2"><label class="form-label">Name</label><input class="form-control" name="name" id="f-name" required/></div>
           <div class="mb-2"><label class="form-label">Return URL</label><input class="form-control" name="return_url" id="f-return" placeholder="https://app.example.com/sso/callback" required/></div>
           <div class="mb-2"><label class="form-label">Secret (optional)</label><input class="form-control" name="secret" id="f-secret" placeholder="Stored in DB if provided; env var takes precedence"/></div>
-          <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="is_active" id="f-active" checked><label class="form-check-label" for="f-active">Active</label></div>
+          <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="is_active" id="f-active" checked><label class="form-check-label" for="f-active">Active</label></div>
+          <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="auto_login" id="f-autologin" checked><label class="form-check-label" for="f-autologin">Auto-login if already authenticated</label></div>
           <div class="d-flex gap-2">
             <button class="btn btn-primary">Save</button>
             <button class="btn btn-secondary" type="button" onclick="resetForm()">Reset</button>
@@ -114,13 +116,14 @@ function prefill(a){
   document.getElementById('f-name').value=a.name;
   document.getElementById('f-return').value=a.return_url;
   document.getElementById('f-active').checked = !!parseInt(a.is_active);
+  document.getElementById('f-autologin').checked = !!parseInt(a.auto_login ?? 1);
   document.getElementById('f-secret').value='';
 }
 function resetForm(){
   document.getElementById('form-title').innerText='Create Application';
   document.getElementById('app-form').reset();
   document.getElementById('f-id').value='';
+  document.getElementById('f-autologin').checked = true;
 }
 </script>
 <?php require __DIR__.'/_partials/footer.php'; ?>
-

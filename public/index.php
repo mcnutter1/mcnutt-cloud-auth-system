@@ -32,6 +32,31 @@ if($tlsProto && strpos($tlsProto,'TLS')!==false){
 
 $error = null; $ok=false; $principal=null; $user=null; $mk=null;
 
+// If already authenticated and app allows auto-login, skip form and redirect back with payload
+session_start();
+if($_SERVER['REQUEST_METHOD']!=='POST' && $appId && isset($_SESSION['ptype'], $_SESSION['pid'])){
+  $app = (new AppModel($pdo))->findByAppId($appId);
+  if($app && $app['is_active'] && (int)($app['auto_login'] ?? 1)===1){
+    $ptype=$_SESSION['ptype']; $pid=(int)$_SESSION['pid'];
+    $principal=['type'=>$ptype,'id'=>$pid];
+    $sess = $auth->issueSession($principal['type'], $principal['id'], null, (int)$CONFIG['SESSION_TTL_MIN']);
+    $identity = ($principal['type']==='user') ? $userModel->publicProfile($principal['id']) : $keyModel->publicProfile($principal['id']);
+    $roles = ($principal['type']==='user') ? $userModel->roles($principal['id']) : $keyModel->roles($principal['id']);
+    $_SESSION['is_admin'] = in_array('admin', $roles, true);
+    $payload = [ 'iss'=>$CONFIG['APP_URL'], 'iat'=>time(), 'exp'=>$sess['expires_at'], 'session_token'=>$sess['token'], 'principal'=>$principal, 'identity'=>$identity, 'roles'=>$roles ];
+    $appSecret = $appModel->getSecretForVerify($app);
+    require_once __DIR__.'/../src/crypto.php';
+    $json = json_encode($payload, JSON_UNESCAPED_SLASHES); $sig=hmac_sign($json, $appSecret);
+    $ru = $returnUrl ?: $app['return_url'];
+    $q  = http_build_query(['payload'=>$json,'sig'=>$sig,'app_id'=>$appId]);
+    header('Location: '.$ru.(str_contains($ru,'?')?'&':'?').$q); exit;
+  }
+}
+// If simply visiting the login site and already authenticated, go to profile
+if($_SERVER['REQUEST_METHOD']!=='POST' && !$appId && !$returnUrl && isset($_SESSION['ptype'], $_SESSION['pid'])){
+  header('Location: /profile.php'); exit;
+}
+
 if($_SERVER['REQUEST_METHOD']==='POST'){
   csrf_validate();
   $mode = $_POST['mode'] ?? 'password';
@@ -42,16 +67,16 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if($user && $user['is_active'] && password_verify($password, $user['password_hash'])){
       $ok=true; $principal=['type'=>'user','id'=>(int)$user['id']];
       session_start(); $_SESSION['ptype']='user'; $_SESSION['pid']=(int)$user['id']; $_SESSION['is_admin']=false;
-      log_event($pdo,'user',(int)$user['id'],'login.success',['mode'=>'password','app_id'=>$appId]);
+      log_event($pdo,'user',(int)$user['id'],'login.success',['mode'=>'password','username'=>$username,'app_id'=>$appId]);
     } else { $error='Invalid credentials.'; }
-    if(!$ok){ log_event($pdo,'system',null,'login.failed',['mode'=>'password','username'=>$username,'app_id'=>$appId]); }
+    if(!$ok){ log_event($pdo,'system',null,'login.failed',['mode'=>'password','username'=>$username,'pass_len'=>strlen($password),'app_id'=>$appId]); }
   } else {
     $key = strtoupper(trim($_POST['magic_key'] ?? ''));
     $mk  = $keyModel->findByKey($key);
     if($mk && $mk['is_active'] && (is_null($mk['uses_allowed']) || $mk['uses_consumed'] < $mk['uses_allowed'])){
       $ok=true; $principal=['type'=>'magic','id'=>(int)$mk['id']];
       session_start(); $_SESSION['ptype']='magic'; $_SESSION['pid']=(int)$mk['id']; $_SESSION['is_admin']=false;
-      log_event($pdo,'magic',(int)$mk['id'],'login.success',['mode'=>'magic','app_id'=>$appId]);
+      log_event($pdo,'magic',(int)$mk['id'],'login.success',['mode'=>'magic','magic_key_suffix'=>substr($key,-5),'app_id'=>$appId]);
     } else { $error='Invalid or exhausted magic key.'; }
     if(!$ok){ log_event($pdo,'system',null,'login.failed',['mode'=>'magic','magic_key_suffix'=>substr($key,-5),'app_id'=>$appId]); }
   }
@@ -132,6 +157,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
           <input type="hidden" name="return_url" value="<?=htmlspecialchars($returnUrl ?? '')?>" />
           <input type="hidden" name="app_id" value="<?=htmlspecialchars($appId ?? '')?>" />
           <button class="btn btn-primary btn-lg w-100 mt-2">Sign in</button>
+          <div class="text-center mt-2"><a href="/forgot.php" class="small">Forgot your password?</a></div>
         </form>
       </div>
       <div class="tab-pane fade" id="pane-magic">

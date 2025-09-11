@@ -119,12 +119,13 @@ require_once __DIR__.'/_partials/header.php';
       </div>
       <div class="table-responsive">
         <table class="table table-sm align-middle">
-          <thead><tr><th>Time</th><th>Event</th><th>Actor</th><th>IP</th><th>Detail</th></tr></thead>
+          <thead><tr><th>Time</th><th>Event</th><th>User</th><th>Actor</th><th>IP</th><th>Detail</th></tr></thead>
           <tbody>
-          <?php foreach($rows as $r): $d=json_decode($r['detail'] ?? '', true); ?>
+          <?php foreach($rows as $r): $d=json_decode($r['detail'] ?? '', true); $uname = $d['username'] ?? ($d['identity']['username'] ?? ''); ?>
             <tr>
               <td class="text-nowrap small text-muted"><?=htmlspecialchars($r['ts'])?></td>
               <td><span class="badge <?php echo $r['event']==='login.failed'?'text-bg-danger':($r['event']==='login.success'?'text-bg-success':'text-bg-secondary'); ?>"><?=htmlspecialchars($r['event'])?></span></td>
+              <td class="small"><?php echo $uname!=='' ? htmlspecialchars($uname) : '—'; ?></td>
               <td class="small text-muted"><?=htmlspecialchars($r['actor_type'].':'.($r['actor_id']??'null'))?></td>
               <td class="small text-muted"><?=htmlspecialchars($r['ip'] ?? '')?></td>
               <td class="small"><div class="text-break font-monospace"><?php echo $d?htmlspecialchars(json_encode($d, JSON_UNESCAPED_SLASHES)) : htmlspecialchars((string)($r['detail'] ?? '')); ?></div></td>

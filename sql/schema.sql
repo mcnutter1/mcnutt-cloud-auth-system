@@ -55,6 +55,7 @@ CREATE TABLE apps (
   return_url    VARCHAR(1024) NOT NULL,
   secret_hash   VARCHAR(255) NOT NULL,
   secret_plain  VARCHAR(255) NULL,
+  auto_login    TINYINT(1) NOT NULL DEFAULT 1,
   is_active     TINYINT(1) NOT NULL DEFAULT 1,
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -83,4 +84,17 @@ CREATE TABLE logs (
   event      VARCHAR(64) NOT NULL,
   detail     TEXT NULL,
   ip         VARCHAR(45) NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Password reset tokens
+CREATE TABLE password_resets (
+  id         BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  user_id    BIGINT UNSIGNED NOT NULL,
+  token      CHAR(64) NOT NULL UNIQUE,
+  expires_at TIMESTAMP NOT NULL,
+  used_at    TIMESTAMP NULL DEFAULT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX (user_id),
+  INDEX (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
