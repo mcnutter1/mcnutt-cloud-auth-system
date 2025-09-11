@@ -76,7 +76,9 @@ require_once __DIR__.'/_partials/header.php';
       <div class="fw-semibold">Login Activity (last 24 hours)</div>
       <div class="small text-muted">Success vs Failed</div>
     </div>
-    <canvas id="loginChart" height="120"></canvas>
+    <div class="chart-container" style="position:relative; height: 240px;">
+      <canvas id="loginChart"></canvas>
+    </div>
   </div></div>
 
   <div class="row g-3">
@@ -125,6 +127,7 @@ new Chart(ctx, {
   options: {
     responsive: true,
     maintainAspectRatio: false,
+    animation: false,
     plugins: { legend: { position: 'top' } },
     scales: { y: { beginAtZero: true, ticks: { precision:0 } } }
   }
