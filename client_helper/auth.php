@@ -34,6 +34,14 @@ function handle_sso_callback(){
   if(($payload['exp']??0) <= time()) die('Expired payload');
   $cookieData = ['identity'=>$payload['identity'],'roles'=>$payload['roles'],'session_token'=>$payload['session_token'],'exp'=>$payload['exp']];
   set_cookie_c($config['cookie_name'], json_encode($cookieData), $config['ttl_sec'], $config['cookie_domain']);
+  // Redirect to same URL without SSO query params so the cookie is available on next request
+  $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']!=='off') ? 'https' : 'http';
+  $host = $_SERVER['HTTP_HOST'];
+  $path = strtok($_SERVER['REQUEST_URI'], '?');
+  $params = $_GET; unset($params['payload'],$params['sig'],$params['app_id']);
+  $qs = http_build_query($params);
+  $dest = $scheme.'://'.$host.$path.($qs?('?'.$qs):'');
+  header('Location: '.$dest); exit;
 }
 function revalidate(string $sessionToken){
   global $config;
