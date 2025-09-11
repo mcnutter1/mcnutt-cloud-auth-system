@@ -19,10 +19,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $secret_plain = $_POST['secret'] ?? '';
     if($id){
       if($app_id==='') throw new Exception('App ID cannot be empty.');
-      $st=$pdo->prepare('UPDATE apps SET app_id=?, name=?, return_url=?, is_active=?'+($secret_plain? ', secret_plain=?':'').' WHERE id=?');
-      $params=[$app_id,$name,$return_url,$is_active];
-      if($secret_plain){ $params[]=$secret_plain; }
-      $params[]=$id;
+      $sql = 'UPDATE apps SET app_id=?, name=?, return_url=?, is_active=?';
+      $params = [$app_id,$name,$return_url,$is_active];
+      if($secret_plain!==''){ $sql .= ', secret_plain=?'; $params[] = $secret_plain; }
+      $sql .= ' WHERE id=?';
+      $params[] = $id;
+      $st = $pdo->prepare($sql);
       $st->execute($params);
       $msg='App updated.';
     } else {
@@ -92,7 +94,7 @@ require_once __DIR__.'/_partials/header.php';
           <div class="mb-2"><label class="form-label">App ID</label><input class="form-control" name="app_id" id="f-appid" placeholder="e.g. photo-gallery" required/></div>
           <div class="mb-2"><label class="form-label">Name</label><input class="form-control" name="name" id="f-name" required/></div>
           <div class="mb-2"><label class="form-label">Return URL</label><input class="form-control" name="return_url" id="f-return" placeholder="https://app.example.com/sso/callback" required/></div>
-          <div class="mb-2"><label class="form-label">Secret (optional)</label><input class="form-control" name="secret" id="f-secret" placeholder="Not stored in plaintext; hash recorded for reference"/></div>
+          <div class="mb-2"><label class="form-label">Secret (optional)</label><input class="form-control" name="secret" id="f-secret" placeholder="Stored in DB if provided; env var takes precedence"/></div>
           <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="is_active" id="f-active" checked><label class="form-check-label" for="f-active">Active</label></div>
           <div class="d-flex gap-2">
             <button class="btn btn-primary">Save</button>
@@ -121,3 +123,4 @@ function resetForm(){
 }
 </script>
 <?php require __DIR__.'/_partials/footer.php'; ?>
+
