@@ -26,8 +26,9 @@ if($appId){
         <div class="brand mb-3">
           <div class="brand-mark"><span class="material-symbols-rounded" aria-hidden="true">shield_lock</span></div>
           <div>
-            <div class="brand-headline">secure login</div>
             <div class="brand-sub">mcnutt.cloud</div>
+            <div class="brand-headline">secure login</div>
+            
           </div>
         </div>
         <div class="alert alert-warning d-flex align-items-center gap-2" role="status" aria-live="polite">
