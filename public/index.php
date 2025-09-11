@@ -17,6 +17,7 @@ $keyModel  = new MagicKeyModel($pdo);
 
 $returnUrl = $_GET['return_url'] ?? null;
 $appId     = $_GET['app_id'] ?? null;
+$tamperSig = ((string)($_GET['tamper_sig'] ?? $_POST['tamper_sig'] ?? '')) === '1';
 
 // Determine app context for display (if provided)
 $appContext = null;
@@ -70,6 +71,7 @@ if($_SERVER['REQUEST_METHOD']!=='POST' && $appId && isset($_SESSION['ptype'], $_
       $appSecret = $appModel->getSecretForVerify($app);
       require_once __DIR__.'/../src/crypto.php';
       $json = json_encode($payload, JSON_UNESCAPED_SLASHES); $sig=hmac_sign($json, $appSecret);
+      if($tamperSig){ $sig = substr($sig, 0, -1).((substr($sig,-1)!=='A')?'A':'B'); }
       $ru = $returnUrl ?: $app['return_url'];
       $q  = http_build_query(['payload'=>$json,'sig'=>$sig,'app_id'=>$appId]);
       header('Location: '.$ru.(str_contains($ru,'?')?'&':'?').$q); exit;
@@ -168,6 +170,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         require_once __DIR__.'/../src/crypto.php';
         $json = json_encode($payload, JSON_UNESCAPED_SLASHES);
         $sig  = hmac_sign($json, $secret);
+        if($tamperSig){ $sig = substr($sig, 0, -1).((substr($sig,-1)!=='A')?'A':'B'); }
         $ru = $returnUrl ?: $app['return_url'];
         $q  = http_build_query(['payload'=>$json, 'sig'=>$sig, 'app_id'=>$appId]);
         header('Location: '.$ru.(str_contains($ru,'?')?'&':'?').$q);
@@ -251,6 +254,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       </div>
       <input type="hidden" name="return_url" value="<?=htmlspecialchars($returnUrl ?? '')?>" />
       <input type="hidden" name="app_id" value="<?=htmlspecialchars($appId ?? '')?>" />
+      <?php if($tamperSig): ?>
+      <input type="hidden" name="tamper_sig" value="1" />
+      <?php endif; ?>
       <button class="btn btn-primary w-100">Sign in</button>
       <div class="text-center mt-2"><a href="/forgot.php" class="small muted-link">Forgot your password?</a></div>
     </form>

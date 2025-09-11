@@ -34,9 +34,22 @@ function handle_sso_callback(){
   if(!isset($_GET['payload'], $_GET['sig'], $_GET['app_id'])) return;
   if($_GET['app_id'] !== $config['app_id']) die('App ID mismatch');
   $payloadJson = $_GET['payload']; $sig = $_GET['sig'];
-  if(!verify_hmac_c($payloadJson, $config['app_secret'], $sig)) die('Invalid signature');
+  if(!verify_hmac_c($payloadJson, $config['app_secret'], $sig)){
+    // Redirect to login server access_denied with reason invalid_signature
+    $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']!=='off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'];
+    $return = $scheme.'://'.$host.$_SERVER['REQUEST_URI'];
+    header('Location: '.rtrim($config['login_base'],'/').'/access_denied.php?reason=invalid_signature&app_id='.urlencode($config['app_id']).'&return_url='.urlencode($return));
+    exit;
+  }
   $payload = json_decode($payloadJson,true);
-  if(($payload['exp']??0) <= time()) die('Expired payload');
+  if(($payload['exp']??0) <= time()){
+    $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']!=='off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'];
+    $return = $scheme.'://'.$host.$_SERVER['REQUEST_URI'];
+    header('Location: '.rtrim($config['login_base'],'/').'/access_denied.php?reason=expired&app_id='.urlencode($config['app_id']).'&return_url='.urlencode($return));
+    exit;
+  }
   $cookieData = ['identity'=>$payload['identity'],'roles'=>$payload['roles'],'session_token'=>$payload['session_token'],'exp'=>$payload['exp']];
   set_cookie_c($config['cookie_name'], json_encode($cookieData), $config['ttl_sec'], $config['cookie_domain']);
   // Redirect to same URL without SSO query params so the cookie is available on next request

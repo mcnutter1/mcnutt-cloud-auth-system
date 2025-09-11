@@ -24,6 +24,7 @@ $reasons = [
   'invalid_app'    => ['title'=>'Invalid application',  'desc'=>'The requested application ID is not recognized.'],
   'inactive_app'   => ['title'=>'Application disabled', 'desc'=>'The requested application is currently disabled.'],
   'expired'        => ['title'=>'Session expired',      'desc'=>'Please sign in again to continue.'],
+  'invalid_signature' => ['title'=>'Invalid signature', 'desc'=>'Signature verification failed for this request. Please try signing in again.'],
   'error'          => ['title'=>'Something went wrong', 'desc'=>'A problem occurred processing your request.'],
 ];
 $meta = $reasons[$reason] ?? $reasons['error'];
