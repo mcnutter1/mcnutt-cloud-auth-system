@@ -16,18 +16,23 @@ if($appId){
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>mcnutt.cloud secure login · Access Denied</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
   <link href="/assets/css/app.css" rel="stylesheet">
 </head><body>
 <div class="auth-bg d-flex align-items-center">
   <div class="container" style="max-width:720px;">
     <div class="card auth-card">
-      <div class="card-body p-4">
+      <div class="card-body p-4 p-md-5">
         <div class="brand mb-3">
-          <div class="brand-mark"></div>
+          <div class="brand-mark"><span class="material-symbols-rounded" aria-hidden="true">shield_lock</span></div>
           <div>
-            <div class="brand-title">mcnutt.cloud secure login</div>
-            <div class="text-muted small">Access Denied</div>
+            <div class="brand-headline">secure login</div>
+            <div class="brand-sub">mcnutt.cloud</div>
           </div>
+        </div>
+        <div class="alert alert-warning d-flex align-items-center gap-2" role="status" aria-live="polite">
+          <span class="material-symbols-rounded" aria-hidden="true">block</span>
+          <div class="fw-semibold">Access denied</div>
         </div>
         <p class="mb-1">You are not authorized to access:</p>
         <p class="h6 mb-3"><strong><?=htmlspecialchars($appName ?: 'this application')?></strong></p>

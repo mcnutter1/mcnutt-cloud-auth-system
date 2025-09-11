@@ -9,11 +9,10 @@ body { background-color: #f5f7fb; font-family: system-ui, -apple-system, Segoe U
   box-shadow: 0 6px 20px rgba(16,24,40,0.06);
 }
 
-.brand {
-  display: flex; align-items: center; gap: .6rem;
-}
-.brand-mark { width: 32px; height: 32px; border-radius: 8px; background: #e9eef8; display:flex; align-items:center; justify-content:center; color:#0d6efd; }
-.brand-title { font-weight: 600; letter-spacing: .2px; }
+.brand { display: flex; align-items: center; gap: .75rem; }
+.brand-mark { width: 40px; height: 40px; border-radius: 10px; background: #e9eef8; display:flex; align-items:center; justify-content:center; color:#0d6efd; }
+.brand-headline { font-weight: 650; letter-spacing: .2px; font-size: 1.25rem; line-height: 1.1; }
+.brand-sub { color: #667085; font-size: .875rem; }
 .muted-link { color: #667085; text-decoration: none; }
 .muted-link:hover { color: #495057; text-decoration: underline; }
 
@@ -23,7 +22,7 @@ body { background-color: #f5f7fb; font-family: system-ui, -apple-system, Segoe U
   font-size: 20px;
   line-height: 1;
 }
-.brand-mark .material-symbols-rounded { font-size: 20px; }
+.brand-mark .material-symbols-rounded { font-size: 28px; }
 
 /* Inputs comfortable on mobile */
 .form-control-lg { font-size: 1rem; padding: .75rem .9rem; }

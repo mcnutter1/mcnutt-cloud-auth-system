@@ -176,10 +176,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   <div class="card auth-card overflow-hidden">
     <div class="card-body p-4 p-md-5">
       <div class="brand mb-3">
-        <div class="brand-mark"><span class="material-symbols-rounded" aria-hidden="true">passkey</span></div>
+        <div class="brand-mark"><span class="material-symbols-rounded" aria-hidden="true">shield_lock</span></div>
         <div>
-          <div class="brand-title">mcnutt.cloud</div>
-          <div class="text-muted">secure login</div>
+          <div class="brand-headline">secure login</div>
+          <div class="brand-sub">mcnutt.cloud</div>
         </div>
       </div>
     <?php if($appContext && ($appContext['is_active'] ?? 0)): ?>
