@@ -40,7 +40,7 @@ if($appId){
         <p class="text-muted">If you believe this is an error, contact an administrator to request access.</p>
         <div class="d-flex gap-2 mt-3">
           <a class="btn btn-primary" href="/profile.php">My Profile</a>
-          <a class="btn btn-outline-danger" href="/logout.php">Back to Login</a>
+          <a class="btn btn-outline-danger" href="/logout.php?app_id=<?=urlencode($appId)?>&return_url=<?=urlencode($return)?>">Back to Login</a>
         </div>
       </div>
     </div>

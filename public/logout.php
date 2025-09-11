@@ -8,4 +8,15 @@ session_start();
 $ptype=$_SESSION['ptype']??null; $pid=$_SESSION['pid']??null;
 if($ptype && $pid){ $auth->revokeAllForPrincipal($ptype,(int)$pid); log_event($pdo,$ptype,(int)$pid,'logout',['everywhere'=>true]); }
 session_unset(); session_destroy();
-header('Location: /');
+
+// Preserve redirect context back to login if provided
+$returnUrl = $_GET['return_url'] ?? null;
+$appId     = $_GET['app_id'] ?? null;
+$dest = '/';
+if($returnUrl || $appId){
+  $q = [];
+  if($returnUrl) $q['return_url'] = $returnUrl;
+  if($appId)     $q['app_id']     = $appId;
+  $dest = '/?'.http_build_query($q);
+}
+header('Location: '.$dest);
