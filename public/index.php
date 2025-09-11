@@ -83,27 +83,33 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   <div class="card shadow-sm rounded-4"><div class="card-body p-4">
     <h1 class="h4 mb-4 text-center">Sign in</h1>
     <?php if($error): ?><div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
-    <form method="post" autocomplete="off">
-      <?php csrf_field(); ?>
-      <ul class="nav nav-pills mb-3" role="tablist">
-        <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pane-pass" type="button">Username &amp; Password</button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pane-magic" type="button">Magic Key</button></li>
-      </ul>
-      <div class="tab-content">
-        <div class="tab-pane fade show active" id="pane-pass">
+    <ul class="nav nav-pills mb-3" role="tablist">
+      <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pane-pass" type="button">Username &amp; Password</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pane-magic" type="button">Magic Key</button></li>
+    </ul>
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="pane-pass">
+        <form method="post" autocomplete="off">
+          <?php csrf_field(); ?>
           <input type="hidden" name="mode" value="password" />
           <div class="mb-3"><label class="form-label">Username</label><input name="username" class="form-control" required /></div>
           <div class="mb-3"><label class="form-label">Password</label><input name="password" type="password" class="form-control" required /></div>
-        </div>
-        <div class="tab-pane fade" id="pane-magic">
+          <input type="hidden" name="return_url" value="<?=htmlspecialchars($returnUrl ?? '')?>" />
+          <input type="hidden" name="app_id" value="<?=htmlspecialchars($appId ?? '')?>" />
+          <button class="btn btn-primary w-100 mt-2">Sign in</button>
+        </form>
+      </div>
+      <div class="tab-pane fade" id="pane-magic">
+        <form method="post" autocomplete="off">
+          <?php csrf_field(); ?>
           <input type="hidden" name="mode" value="magic" />
           <div class="mb-3"><label class="form-label">Magic Key</label><input name="magic_key" class="form-control" placeholder="ABCDE-FGHIJ-KLMNO-PQRST-UVWX" required /></div>
-        </div>
+          <input type="hidden" name="return_url" value="<?=htmlspecialchars($returnUrl ?? '')?>" />
+          <input type="hidden" name="app_id" value="<?=htmlspecialchars($appId ?? '')?>" />
+          <button class="btn btn-primary w-100 mt-2">Sign in</button>
+        </form>
       </div>
-      <input type="hidden" name="return_url" value="<?=htmlspecialchars($returnUrl ?? '')?>" />
-      <input type="hidden" name="app_id" value="<?=htmlspecialchars($appId ?? '')?>" />
-      <button class="btn btn-primary w-100 mt-2">Sign in</button>
-    </form>
+    </div>
   </div></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
