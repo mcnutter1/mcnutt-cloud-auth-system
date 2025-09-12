@@ -16,6 +16,10 @@
   if(m){ m.addEventListener('change',sync); }
   sync();
 
+  // Focus password if username is remembered
+  const hiddenUser = document.getElementById('f-user-hidden');
+  if(hiddenUser && p){ try{ p.focus(); }catch(e){} }
+
   if(forget){
     forget.addEventListener('click', (e)=>{
       e.preventDefault();
@@ -33,6 +37,9 @@
         wrap.innerHTML = '<input type="text" class="form-control" id="f-user" name="username" placeholder="username" autocomplete="username" required><label for="f-user">Username</label>';
         parent.insertBefore(wrap, parent.querySelector('.form-floating'));
       }
+      // Move focus to username field
+      const nu = document.getElementById('f-user');
+      if(nu){ try{ nu.focus(); }catch(e){} }
       if(remember) remember.checked = false;
     });
   }

@@ -275,9 +275,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
           <input type="password" class="form-control" id="f-pass" name="password" placeholder="password" autocomplete="current-password" required>
           <label for="f-pass">Password</label>
         </div>
-        <div class="form-check mb-2">
-          <input type="checkbox" class="form-check-input" id="f-remember" name="remember" value="1" <?php if($remembered) echo 'checked'; ?>>
-          <label class="form-check-label" for="f-remember">Remember me</label>
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="form-check m-0">
+            <input type="checkbox" class="form-check-input" id="f-remember" name="remember" value="1" <?php if($remembered) echo 'checked'; ?>>
+            <label class="form-check-label" for="f-remember">Remember me</label>
+          </div>
+          <a href="/forgot.php" class="small muted-link">Forgot your password?</a>
         </div>
       </div>
       <div id="group-magic" class="d-none">
@@ -292,7 +295,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       <input type="hidden" name="tamper_sig" value="1" />
       <?php endif; ?>
       <button class="btn btn-primary w-100">Sign in</button>
-      <div class="text-center mt-2"><a href="/forgot.php" class="small muted-link">Forgot your password?</a></div>
     </form>
   </div>
   </div>
