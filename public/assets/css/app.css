@@ -48,6 +48,15 @@ body { background-color: #f5f7fb; font-family: system-ui, -apple-system, Segoe U
 /* App context chip */
 .app-context { border-radius: 10px; }
 
+/* Header separator on login */
+.header-sep { border: 0; border-top: 1px solid #e9edf5; margin: 8px 0 16px; }
+
+/* Remembered user pill */
+.remembered-box { border: 1px solid #e3e7ef; background: #f8fafc; border-radius: 10px; padding: 8px 10px; display:flex; align-items:center; justify-content:space-between; }
+.remembered-box .label { color:#667085; font-size:.8rem; }
+.remembered-box .name { font-weight:600; }
+.remembered-box a { font-size:.8rem; }
+
 /* App tiles on profile */
 .app-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: .5rem; }
 .app-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; border: 1px solid #e3e7ef; border-radius: 12px; padding: 10px; background: #fff; box-shadow: 0 2px 8px rgba(16,24,40,0.05); transition: transform .06s ease, box-shadow .12s ease; }

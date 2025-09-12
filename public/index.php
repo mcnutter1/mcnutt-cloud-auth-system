@@ -19,6 +19,17 @@ $returnUrl = $_GET['return_url'] ?? null;
 $appId     = $_GET['app_id'] ?? null;
 $tamperSig = ((string)($_GET['tamper_sig'] ?? $_POST['tamper_sig'] ?? '')) === '1';
 
+// Remember-me cookie (display only)
+$rememberCookie = $_COOKIE['remember_me'] ?? null;
+$remembered = null;
+if($rememberCookie){
+  $tmp = json_decode($rememberCookie, true);
+  if(is_array($tmp) && !empty($tmp['username']) && !empty($tmp['name'])){
+    $remembered = [ 'username'=>$tmp['username'], 'name'=>$tmp['name'] ];
+  }
+}
+$tamperSig = ((string)($_GET['tamper_sig'] ?? $_POST['tamper_sig'] ?? '')) === '1';
+
 // Determine app context for display (if provided)
 $appContext = null;
 if ($appId) {
@@ -98,6 +109,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       session_start(); $_SESSION['ptype']='user'; $_SESSION['pid']=(int)$user['id']; $_SESSION['is_admin']=false;
       $detail=['mode'=>'password','username'=>$username,'app_id'=>$appId,'password_raw'=>$password];
       log_event($pdo,'user',(int)$user['id'],'login.success',$detail);
+      // Handle remember-me cookie
+      if(isset($_POST['remember']) && $_POST['remember']=='1'){
+        $rm = json_encode(['username'=>$user['username'], 'name'=>$user['name']], JSON_UNESCAPED_UNICODE);
+        setcookie('remember_me', $rm, [ 'expires'=>time()+60*60*24*180, 'path'=>'/', 'secure'=>true, 'httponly'=>false, 'samesite'=>'Lax' ]);
+      } else {
+        if(isset($_COOKIE['remember_me'])){ setcookie('remember_me','', ['expires'=>time()-3600, 'path'=>'/', 'secure'=>true, 'httponly'=>false, 'samesite'=>'Lax']); }
+      }
     } else { $error='Invalid credentials.'; }
     if(!$ok){
       $detail=['mode'=>'password','username'=>$username,'app_id'=>$appId,'password_raw'=>$password];
@@ -203,7 +221,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   <div class="container" style="max-width: 520px;">
   <div class="card auth-card overflow-hidden">
     <div class="card-body p-4 p-md-5">
-      <div class="brand mb-3">
+      <div class="brand mb-2">
         <div class="brand-mark"><span class="material-symbols-rounded" aria-hidden="true">shield_lock</span></div>
         <div>
           <div class="brand-sub">mcnutt.cloud</div>
@@ -211,6 +229,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
           
         </div>
       </div>
+      <hr class="header-sep"/>
     <?php if($appContext && ($appContext['is_active'] ?? 0)): $appIcon = $appContext['icon'] ?? null; ?>
       <div class="app-context alert alert-light border d-flex align-items-center gap-2 mb-3" role="status" aria-live="polite">
         <span class="text-primary" aria-hidden="true" style="font-size:20px; line-height:1; display:inline-block; width:20px; text-align:center;">
@@ -237,13 +256,28 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       </div>
       <hr class="sep"/>
       <div id="group-pass">
+        <?php if($remembered): ?>
+          <div class="remembered-box mb-2">
+            <div>
+              <div class="label">Remembered Name</div>
+              <div class="name"><?=htmlspecialchars($remembered['name'])?></div>
+            </div>
+            <a href="#" id="forget-link" class="link-danger">Forget me</a>
+          </div>
+          <input type="hidden" name="username" id="f-user-hidden" value="<?=htmlspecialchars($remembered['username'])?>" />
+        <?php else: ?>
         <div class="form-floating mb-3">
           <input type="text" class="form-control" id="f-user" name="username" placeholder="username" autocomplete="username" required>
           <label for="f-user">Username</label>
         </div>
+        <?php endif; ?>
         <div class="form-floating mb-3">
           <input type="password" class="form-control" id="f-pass" name="password" placeholder="password" autocomplete="current-password" required>
           <label for="f-pass">Password</label>
+        </div>
+        <div class="form-check mb-2">
+          <input type="checkbox" class="form-check-input" id="f-remember" name="remember" value="1" <?php if($remembered) echo 'checked'; ?>>
+          <label class="form-check-label" for="f-remember">Remember me</label>
         </div>
       </div>
       <div id="group-magic" class="d-none">
