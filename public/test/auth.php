@@ -70,6 +70,53 @@ function revalidate(string $sessionToken){
   set_cookie_c($config['cookie_name'], json_encode(['identity'=>$pl['identity'],'roles'=>$pl['roles'],'session_token'=>$pl['session_token'],'exp'=>$pl['exp']]), $config['ttl_sec'], $config['cookie_domain']);
   return true;
 }
+
+// Ensure the authenticated user holds required role(s).
+// $required may be a string role (e.g., 'admin') or an array of roles.
+// $mode controls matching when an array is provided: 'any' (default) or 'all'.
+// If authorization fails, redirects to the main login site's access_denied page.
+function ensure_role($required, string $mode = 'any'){
+  global $config;
+  $auth = ensure_authenticated();
+  $roles = $auth['roles'] ?? [];
+
+  $hasAccess = false;
+  if (is_array($required)) {
+    $required = array_values(array_unique(array_map('strval', $required)));
+    if ($mode === 'all') {
+      $hasAccess = !array_diff($required, $roles);
+    } else { // any
+      $hasAccess = (bool)array_intersect($required, $roles);
+    }
+  } else {
+    $hasAccess = in_array((string)$required, $roles, true);
+  }
+
+  if ($hasAccess) {
+    return $auth; // pass through auth payload for convenience
+  }
+
+  // Not authorized: redirect to central access_denied with context
+  $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']!=='off') ? 'https' : 'http';
+  $host = $_SERVER['HTTP_HOST'];
+  $return = $scheme.'://'.$host.$_SERVER['REQUEST_URI'];
+  $base = rtrim($config['login_base'],'/');
+
+  $q = [
+    'reason'     => 'not_authorized',
+    'app_id'     => $config['app_id'],
+    'return_url' => $return,
+  ];
+  if (is_array($required)) {
+    $q['required_role'] = implode(',', $required);
+    $q['mode'] = ($mode === 'all') ? 'all' : 'any';
+  } else {
+    $q['required_role'] = (string)$required;
+  }
+
+  header('Location: '.$base.'/access_denied.php?'.http_build_query($q));
+  exit;
+}
 function logout_everywhere(){
   global $config;
   $cookie = $_COOKIE[$config['cookie_name']] ?? null;

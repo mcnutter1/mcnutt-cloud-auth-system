@@ -280,7 +280,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             <input type="checkbox" class="form-check-input" id="f-remember" name="remember" value="1" <?php if($remembered) echo 'checked'; ?>>
             <label class="form-check-label" for="f-remember">Remember me</label>
           </div>
-          <a href="/forgot.php" class="small muted-link">Forgot your password?</a>
+          <a href="/forgot.php" class="muted-link">Forgot password?</a>
         </div>
       </div>
       <div id="group-magic" class="d-none">

@@ -60,6 +60,7 @@ if($ptype==='user'){
 // Recent activity
 $recentLogins = [];
 $appsUsed = [];
+$appsUsedResolved = [];
 if($ptype==='user'){
   $st=$pdo->prepare("SELECT ts, event, ip, detail FROM logs WHERE actor_type='user' AND actor_id=? ORDER BY ts DESC, id DESC LIMIT 50");
   $st->execute([$pid]); $recentLogins=$st->fetchAll(PDO::FETCH_ASSOC);
@@ -68,6 +69,16 @@ if($ptype==='user'){
     if(is_array($d) && !empty($d['app_id'])){
       $appsUsed[$d['app_id']] = ($appsUsed[$d['app_id']] ?? 0) + 1;
     }
+  }
+  // Resolve only to known apps to avoid showing typos/unknown IDs
+  if($appsUsed){
+    $ids = array_keys($appsUsed);
+    // Build placeholders safely for IN clause
+    $ph = implode(',', array_fill(0, count($ids), '?'));
+    $st=$pdo->prepare("SELECT app_id, name FROM apps WHERE app_id IN ($ph)");
+    $st->execute($ids);
+    $map=[]; while($row=$st->fetch(PDO::FETCH_ASSOC)){ $map[$row['app_id']]=$row['name']; }
+    foreach($appsUsed as $aid=>$cnt){ if(isset($map[$aid])){ $appsUsedResolved[$aid] = ['name'=>$map[$aid], 'count'=>$cnt]; } }
   }
 }
 
@@ -206,9 +217,9 @@ if($ptype==='user' && !empty($identity['username'])){
 
       <div class="card auth-card mt-3"><div class="card-body">
         <h2 class="h6 mb-2">Applications Used</h2>
-        <?php if($appsUsed): ?>
-          <?php foreach($appsUsed as $app=>$cnt): ?>
-            <span class="badge rounded-pill text-bg-secondary me-1 mb-1"><?=htmlspecialchars($app)?> (<?=$cnt?>)</span>
+        <?php if($appsUsedResolved): ?>
+          <?php foreach($appsUsedResolved as $aid=>$info): ?>
+            <span class="badge rounded-pill text-bg-secondary me-1 mb-1"><?=htmlspecialchars($info['name'])?> (<?=$info['count']?>)</span>
           <?php endforeach; ?>
         <?php else: ?>
           <div class="small text-muted">No app usage yet.</div>
