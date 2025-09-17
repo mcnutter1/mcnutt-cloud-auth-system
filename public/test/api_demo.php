@@ -58,9 +58,16 @@ async function callApi(path){
     catch{ out.textContent = text; }
   }catch(e){ out.textContent = 'Request failed: ' + e; }
 }
-document.getElementById('btnWhoami').addEventListener('click', () => callApi('/test/api/whoami.php'));
-document.getElementById('btnAdmin').addEventListener('click', () => callApi('/test/api/admin_only.php'));
+document.getElementById('btnWhoami').addEventListener('click', () => {
+  const key = document.getElementById('apiKey').value.trim();
+  const url = '/test/api/whoami.php' + (key ? ('?api_key=' + encodeURIComponent(key)) : '');
+  callApi(url);
+});
+document.getElementById('btnAdmin').addEventListener('click', () => {
+  const key = document.getElementById('apiKey').value.trim();
+  const url = '/test/api/admin_only.php' + (key ? ('?api_key=' + encodeURIComponent(key)) : '');
+  callApi(url);
+});
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body></html>
-
