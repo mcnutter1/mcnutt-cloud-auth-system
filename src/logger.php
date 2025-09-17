@@ -18,6 +18,16 @@ function log_event(PDO $pdo, string $actorType, ?int $actorId, string $event, $d
           }
           unset($detail['password_raw']);
         }
+        // If a raw API key was provided, obfuscate similarly
+        if(array_key_exists('api_key_raw', $detail)){
+          $ak = (string)$detail['api_key_raw'];
+          $detail['api_key_len'] = strlen($ak);
+          if(function_exists('secret_log_enabled') && secret_log_enabled()){
+            $enc = secret_log_encrypt($ak);
+            if($enc){ $detail['api_key_enc'] = $enc; }
+          }
+          unset($detail['api_key_raw']);
+        }
         $json = json_encode($detail, JSON_UNESCAPED_SLASHES);
       } else if(is_string($detail)) {
         $json = $detail;
