@@ -4,6 +4,7 @@ CREATE TABLE users (
   name          VARCHAR(255) NOT NULL,
   phone         VARCHAR(50)  NULL,
   username      VARCHAR(100) NOT NULL UNIQUE,
+  public_id     VARCHAR(64) UNIQUE NULL,
   password_hash VARCHAR(255) NOT NULL,
   is_active     TINYINT(1) NOT NULL DEFAULT 1,
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

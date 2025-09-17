@@ -92,7 +92,12 @@ if($_SERVER['REQUEST_METHOD']!=='POST' && $appId && isset($_SESSION['ptype'], $_
     $identity = ($principal['type']==='user') ? $userModel->publicProfile($principal['id']) : $keyModel->publicProfile($principal['id']);
     $roles = ($principal['type']==='user') ? $userModel->roles($principal['id']) : $keyModel->roles($principal['id']);
     $_SESSION['is_admin'] = in_array('admin', $roles, true);
-    $payload = [ 'iss'=>$CONFIG['APP_URL'], 'iat'=>time(), 'exp'=>$sess['expires_at'], 'session_token'=>$sess['token'], 'principal'=>$principal, 'identity'=>$identity, 'roles'=>$roles ];
+    // Use public uid for user principal in payload
+    $principalOut = $principal;
+    if($principal['type']==='user' && is_array($identity) && isset($identity['uid'])){
+      $principalOut['id'] = $identity['uid'];
+    }
+    $payload = [ 'iss'=>$CONFIG['APP_URL'], 'iat'=>time(), 'exp'=>$sess['expires_at'], 'session_token'=>$sess['token'], 'principal'=>$principalOut, 'identity'=>$identity, 'roles'=>$roles ];
     try{
       $appSecret = $appModel->getSecretForVerify($app);
       require_once __DIR__.'/../src/crypto.php';
@@ -162,12 +167,17 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $roles = ($principal['type']==='user') ? $userModel->roles($principal['id']) : $keyModel->roles($principal['id']);
     // Update admin flag in session based on role membership
     $_SESSION['is_admin'] = in_array('admin', $roles, true);
+    // Use public uid for user principal in payload
+    $principalOut = $principal;
+    if($principal['type']==='user' && is_array($identity) && isset($identity['uid'])){
+      $principalOut['id'] = $identity['uid'];
+    }
     $payload = [
       'iss' => $CONFIG['APP_URL'],
       'iat' => time(),
       'exp' => $sess['expires_at'],
       'session_token' => $sess['token'],
-      'principal' => [ 'type'=>$principal['type'], 'id'=>$principal['id'] ],
+      'principal' => [ 'type'=>$principalOut['type'], 'id'=>$principalOut['id'] ],
       'identity'  => $identity,
       'roles'     => $roles
     ];

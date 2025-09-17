@@ -52,6 +52,10 @@ if($token !== ''){
   echo json_encode(['ok'=>false]); exit;
 }
 $expiresAt = (new DateTimeImmutable('+'.$CONFIG['SESSION_TTL_MIN'].' minutes'))->getTimestamp();
+// Replace principal.id with public uid for users
+if($principal['type']==='user'){
+  $principal['id'] = $identity['uid'] ?? $principal['id'];
+}
 $payload = [ 'iss'=>$CONFIG['APP_URL'], 'iat'=>time(), 'exp'=>$expiresAt, 'session_token'=>$token, 'principal'=>$principal, 'identity'=>$identity, 'roles'=>$roles ];
 $app = $appModel->findByAppId($appId);
 if(!$app){
