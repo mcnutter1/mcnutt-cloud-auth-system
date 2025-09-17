@@ -22,6 +22,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     $is_active = isset($_POST['is_active']) ? 1 : 0;
+    $allow_api_keys = isset($_POST['allow_api_keys']) ? 1 : 0;
     $sel_roles = array_map('intval', $_POST['roles'] ?? []);
     $sel_apps  = array_map('intval', $_POST['apps']  ?? []);
 
@@ -30,17 +31,17 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $pdo->beginTransaction();
     if($id){
       if($password!==''){
-        $st=$pdo->prepare("UPDATE users SET email=?, name=?, username=?, password_hash=?, is_active=? WHERE id=?");
-        $st->execute([$email,$name,$username,password_hash($password,PASSWORD_DEFAULT),$is_active,$id]);
+        $st=$pdo->prepare("UPDATE users SET email=?, name=?, username=?, password_hash=?, is_active=?, allow_api_keys=? WHERE id=?");
+        $st->execute([$email,$name,$username,password_hash($password,PASSWORD_DEFAULT),$is_active,$allow_api_keys,$id]);
       } else {
-        $st=$pdo->prepare("UPDATE users SET email=?, name=?, username=?, is_active=? WHERE id=?");
-        $st->execute([$email,$name,$username,$is_active,$id]);
+        $st=$pdo->prepare("UPDATE users SET email=?, name=?, username=?, is_active=?, allow_api_keys=? WHERE id=?");
+        $st->execute([$email,$name,$username,$is_active,$allow_api_keys,$id]);
       }
       $userId = $id;
     } else {
       if($password==='') throw new Exception('Password required for new user.');
-      $st=$pdo->prepare("INSERT INTO users (email,name,username,password_hash,is_active) VALUES (?,?,?,?,?)");
-      $st->execute([$email,$name,$username,password_hash($password,PASSWORD_DEFAULT),$is_active]);
+      $st=$pdo->prepare("INSERT INTO users (email,name,username,password_hash,is_active,allow_api_keys) VALUES (?,?,?,?,?,?)");
+      $st->execute([$email,$name,$username,password_hash($password,PASSWORD_DEFAULT),$is_active,$allow_api_keys]);
       $userId = (int)$pdo->lastInsertId();
     }
 
@@ -87,7 +88,7 @@ require_once __DIR__.'/_partials/header.php';
       <div class="card shadow-sm"><div class="card-body">
         <div class="table-responsive">
           <table class="table align-middle mb-0">
-            <thead><tr><th>ID</th><th>User</th><th>Username</th><th>Roles</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>ID</th><th>User</th><th>Username</th><th>Roles</th><th>Status</th><th>API Keys</th><th></th></tr></thead>
             <tbody>
             <?php foreach($users as $u): ?>
               <tr>
@@ -98,8 +99,11 @@ require_once __DIR__.'/_partials/header.php';
                 <td>
                   <?php if($u['is_active']): ?><span class="badge text-bg-success">Active</span><?php else: ?><span class="badge text-bg-secondary">Disabled</span><?php endif; ?>
                 </td>
+                <td>
+                  <?php if((int)($u['allow_api_keys'] ?? 0)===1): ?><span class="badge text-bg-primary">Enabled</span><?php else: ?><span class="badge text-bg-light text-muted">Disabled</span><?php endif; ?>
+                </td>
                 <td class="text-end">
-                  <button class="btn btn-sm btn-outline-primary" type="button" onclick="prefillUser(<?=htmlspecialchars(json_encode(['id'=>$u['id'],'email'=>$u['email'],'name'=>$u['name'],'username'=>$u['username'],'is_active'=>$u['is_active'],'roles_csv'=>$u['roles_csv']]))?>)">Edit</button>
+                  <button class="btn btn-sm btn-outline-primary" type="button" onclick="prefillUser(<?=htmlspecialchars(json_encode(['id'=>$u['id'],'email'=>$u['email'],'name'=>$u['name'],'username'=>$u['username'],'is_active'=>$u['is_active'],'allow_api_keys'=>$u['allow_api_keys'],'roles_csv'=>$u['roles_csv']]))?>)">Edit</button>
                   <form method="post" class="d-inline">
                     <?php csrf_field(); ?>
                     <input type="hidden" name="action" value="toggle"/>
@@ -126,6 +130,7 @@ require_once __DIR__.'/_partials/header.php';
           <div class="mb-2"><label class="form-label">Username</label><input name="username" id="f-username" class="form-control" required/></div>
           <div class="mb-2"><label class="form-label">Password <span class="text-muted small" id="pwd-hint">(required)</span></label><input name="password" id="f-password" type="password" class="form-control"/></div>
           <div class="mb-3 form-check"><input class="form-check-input" type="checkbox" name="is_active" id="f-active" checked/><label class="form-check-label" for="f-active">Active</label></div>
+          <div class="mb-3 form-check"><input class="form-check-input" type="checkbox" name="allow_api_keys" id="f-api-keys"/><label class="form-check-label" for="f-api-keys">Allow API Keys</label></div>
           <div class="mb-3">
             <div class="form-label">Roles</div>
             <?php foreach($roles as $r): ?>
@@ -162,6 +167,7 @@ function prefillUser(data){
   document.getElementById('f-name').value=data.name;
   document.getElementById('f-username').value=data.username;
   document.getElementById('f-active').checked = !!parseInt(data.is_active);
+  document.getElementById('f-api-keys').checked = !!parseInt(data.allow_api_keys || 0);
   document.getElementById('pwd-hint').innerText='(leave blank to keep)';
   // Set role selections
   var boxes = document.querySelectorAll('input[name="roles[]"]');

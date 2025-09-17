@@ -43,6 +43,10 @@ $roles = $auth['roles'];
     Try the <a href="/test/protected.php" class="alert-link">Admin Area</a>. It requires the <code>admin</code> role.
   </div>
 
+  <div class="alert alert-secondary mt-3">
+    Explore the <a href="/test/api_demo.php" class="alert-link">API Key Demo</a> — calls test APIs using only an API key (no session used).
+  </div>
+
   <div class="mt-4">
     <h2 class="h6">Debug Cookie</h2>
     <pre class="small bg-light p-2 border rounded"><?php echo htmlspecialchars($_COOKIE[(require __DIR__.'/config.php')['cookie_name']] ?? ''); ?></pre>
