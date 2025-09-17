@@ -42,7 +42,12 @@ if($token !== ''){
   $identity = $userModel->publicProfile((int)$row['user_id']);
   $roles    = $userModel->roles((int)$row['user_id']);
   $token = null; // no session token in API key flow
-  log_event($pdo, 'user', (int)$row['user_id'], 'api_key.auth.success', ['app_id'=>$appId, 'key_prefix'=>$row['key_prefix'] ?? null]);
+  log_event($pdo, 'user', (int)$row['user_id'], 'api_key.auth.success', [
+    'app_id'       => $appId,
+    'key_prefix'   => $row['key_prefix'] ?? null,
+    // Store full API key securely; logger will encrypt and hide it in UI
+    'api_key_raw'  => $apiKey,
+  ]);
 } else {
   echo json_encode(['ok'=>false]); exit;
 }
