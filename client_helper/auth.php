@@ -163,3 +163,15 @@ function handle_logout_request(){
 if (isset($_GET['logout'])) {
   handle_logout_request(); // exits after redirect
 }
+
+// Validate a personal API key against the login server and return payload if valid.
+// Intended for server-to-server API requests in downstream apps.
+function validate_api_key_c(string $apiKey){
+  global $config;
+  $resp = @file_get_contents($config['validate_endpoint'].'?api_key='.urlencode($apiKey).'&app_id='.urlencode($config['app_id']));
+  if(!$resp) return null;
+  $data = json_decode($resp,true);
+  if(!($data['ok']??false)) return null;
+  if(!verify_hmac_c(json_encode($data['payload'], JSON_UNESCAPED_SLASHES), $config['app_secret'], $data['sig'])) return null;
+  return $data['payload'];
+}

@@ -19,6 +19,14 @@ $returnUrl = $_GET['return_url'] ?? null;
 $appId     = $_GET['app_id'] ?? null;
 $tamperSig = ((string)($_GET['tamper_sig'] ?? $_POST['tamper_sig'] ?? '')) === '1';
 
+// JSON response support helper
+function wants_json_index(): bool {
+  $fmt = $_GET['format'] ?? '';
+  if(strtolower((string)$fmt) === 'json') return true;
+  $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+  return stripos($accept, 'application/json') !== false;
+}
+
 // Remember-me cookie (display only)
 $rememberCookie = $_COOKIE['remember_me'] ?? null;
 $remembered = null;
@@ -40,6 +48,13 @@ $error = null; $ok=false; $principal=null; $user=null; $mk=null;
 
 // If already authenticated and app allows auto-login, skip form and redirect back with payload
 session_start();
+// If an API caller hits the login page without a session and requests JSON, return a JSON error
+if($_SERVER['REQUEST_METHOD']!=='POST' && wants_json_index() && !isset($_SESSION['ptype'], $_SESSION['pid'])){
+  http_response_code(401);
+  header('Content-Type: application/json');
+  echo json_encode(['ok'=>false, 'reason'=>'not_authenticated', 'message'=>'Authentication required']);
+  exit;
+}
 if($_SERVER['REQUEST_METHOD']!=='POST' && $appId && isset($_SESSION['ptype'], $_SESSION['pid'])){
   $app = (new AppModel($pdo))->findByAppId($appId);
   if(!$app){

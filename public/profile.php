@@ -3,6 +3,7 @@ require_once __DIR__.'/../src/bootstrap.php';
 require_once __DIR__.'/../src/db.php';
 require_once __DIR__.'/../src/csrf.php';
 require_once __DIR__.'/../src/secret_log.php';
+require_once __DIR__.'/../src/models/ApiKeyModel.php';
 
 session_start();
 if(!isset($_SESSION['ptype'], $_SESSION['pid'])){
@@ -11,7 +12,7 @@ if(!isset($_SESSION['ptype'], $_SESSION['pid'])){
 $ptype=$_SESSION['ptype']; $pid=(int)$_SESSION['pid'];
 $pdo=db();
 
-$msg=null; $err=null;
+$msg=null; $err=null; $newApiKey=null;
 
 if($_SERVER['REQUEST_METHOD']==='POST'){
   csrf_validate();
@@ -24,6 +25,21 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         if(!$ph || !password_verify($current, $ph)) throw new Exception('Current password is incorrect.');
         $pdo->prepare('UPDATE users SET password_hash=? WHERE id=?')->execute([password_hash($new,PASSWORD_DEFAULT),$pid]);
         $msg='Password updated.';
+      } else if(isset($_POST['action']) && $_POST['action']==='api_key_create'){
+        // Create a new API key if allowed
+        $st=$pdo->prepare('SELECT allow_api_keys FROM users WHERE id=?'); $st->execute([$pid]); $allow=(int)$st->fetchColumn();
+        if($allow!==1) throw new Exception('API keys are not enabled for your account.');
+        $label = trim($_POST['label'] ?? ''); if($label==='') $label=null;
+        $akm = new ApiKeyModel($pdo);
+        $res = $akm->createKey($pid, $label);
+        $newApiKey = $res['key'];
+        $msg='API key created. Copy it now — it will not be shown again.';
+      } else if(isset($_POST['action']) && $_POST['action']==='api_key_revoke'){
+        $keyId = (int)($_POST['key_id'] ?? 0);
+        if($keyId<=0) throw new Exception('Invalid key.');
+        $akm = new ApiKeyModel($pdo); $ok=$akm->revokeKey($pid, $keyId);
+        if(!$ok) throw new Exception('Unable to revoke key.');
+        $msg='API key revoked.';
       } else {
         $name=trim($_POST['name']??''); $phone=trim($_POST['phone']??'');
         if($name==='') throw new Exception('Name is required.');
@@ -41,9 +57,19 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 }
 
 if($ptype==='user'){
-  $st=$pdo->prepare('SELECT id,email,name,phone,username FROM users WHERE id=?'); $st->execute([$pid]); $identity=$st->fetch(PDO::FETCH_ASSOC);
+  $st=$pdo->prepare('SELECT id,email,name,phone,username,allow_api_keys FROM users WHERE id=?'); $st->execute([$pid]); $identity=$st->fetch(PDO::FETCH_ASSOC);
 } else {
   $st=$pdo->prepare('SELECT id,email,name,phone FROM magic_keys WHERE id=?'); $st->execute([$pid]); $identity=$st->fetch(PDO::FETCH_ASSOC); $identity['username']='(magic)';
+}
+
+$apiKeys = [];
+$allowApi = false;
+if($ptype==='user'){
+  $allowApi = ((int)($identity['allow_api_keys'] ?? 0)) === 1;
+  if($allowApi){
+    $akm = new ApiKeyModel($pdo);
+    $apiKeys = $akm->listKeys($pid);
+  }
 }
 
 // Applications enabled for this principal
@@ -177,6 +203,52 @@ if($ptype==='user' && !empty($identity['username'])){
       </div></div>
     </div>
     <div class="col-md-5">
+      <?php if($ptype==='user'): ?>
+      <?php if($allowApi): ?>
+      <div class="card auth-card"><div class="card-body">
+        <h2 class="h6 mb-2">API Keys</h2>
+        <p class="small text-muted">Use personal API keys to authenticate to supported application APIs. Keep keys secret; they grant access as you.</p>
+        <?php if($newApiKey): ?>
+          <div class="alert alert-warning small"><div class="fw-semibold mb-1">Your new API key</div><code style="user-select:all; display:block; word-break:break-all;"><?=htmlspecialchars($newApiKey)?></code><div class="mt-1">Copy it now — it will not be shown again.</div></div>
+        <?php endif; ?>
+        <form method="post" class="mb-3 d-flex gap-2 align-items-end">
+          <?php csrf_field(); ?>
+          <input type="hidden" name="action" value="api_key_create" />
+          <div class="flex-grow-1"><label class="form-label">Label (optional)</label><input class="form-control" type="text" name="label" maxlength="100" placeholder="e.g., My CLI"/></div>
+          <button class="btn btn-outline-primary">Generate</button>
+        </form>
+        <div class="list-group list-group-flush">
+          <?php if($apiKeys): ?>
+            <?php foreach($apiKeys as $k): ?>
+              <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="fw-semibold small"><?=htmlspecialchars($k['label'] ?: 'Untitled')?> <span class="text-muted">(mcak_<?=htmlspecialchars($k['key_prefix'])?>…<?=htmlspecialchars($k['key_last4'])?>)</span></div>
+                  <div class="small text-muted">Created <?=htmlspecialchars($k['created_at'])?><?php if($k['last_used_at']): ?> · Last used <?=htmlspecialchars($k['last_used_at'])?><?php endif; ?></div>
+                </div>
+                <?php if((int)$k['is_active']===1): ?>
+                  <form method="post" onsubmit="return confirm('Revoke this API key?');">
+                    <?php csrf_field(); ?>
+                    <input type="hidden" name="action" value="api_key_revoke" />
+                    <input type="hidden" name="key_id" value="<?= (int)$k['id'] ?>" />
+                    <button class="btn btn-sm btn-outline-danger">Revoke</button>
+                  </form>
+                <?php else: ?>
+                  <span class="badge text-bg-secondary">Revoked</span>
+                <?php endif; ?>
+              </div>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <div class="list-group-item small text-muted">No API keys yet.</div>
+          <?php endif; ?>
+        </div>
+      </div></div>
+      <?php else: ?>
+      <div class="card auth-card"><div class="card-body">
+        <h2 class="h6 mb-2">API Keys</h2>
+        <div class="small text-muted">API keys are not enabled for your account. Contact an administrator if you need programmatic access.</div>
+      </div></div>
+      <?php endif; ?>
+      <?php endif; ?>
       <div class="card auth-card"><div class="card-body">
         <h2 class="h6 mb-2">Applications Enabled</h2>
         <?php if(!empty($appsEnabled)): ?>

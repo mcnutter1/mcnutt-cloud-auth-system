@@ -8,6 +8,14 @@ $appId = $_GET['app_id'] ?? '';
 $return = $_GET['return_url'] ?? '/';
 $reason = $_GET['reason'] ?? 'not_authorized';
 
+// JSON response support for API callers
+function wants_json(): bool {
+  $fmt = $_GET['format'] ?? '';
+  if(strtolower((string)$fmt) === 'json') return true;
+  $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+  return stripos($accept, 'application/json') !== false;
+}
+
 // Look up app context if provided
 $appName = $appId; $app = null;
 if ($appId) {
@@ -28,6 +36,20 @@ $reasons = [
   'error'          => ['title'=>'Something went wrong', 'desc'=>'A problem occurred processing your request.'],
 ];
 $meta = $reasons[$reason] ?? $reasons['error'];
+
+if (wants_json()) {
+  http_response_code($reason==='expired' ? 401 : 403);
+  header('Content-Type: application/json');
+  echo json_encode([
+    'ok' => false,
+    'reason' => $reason,
+    'title' => $meta['title'],
+    'message' => $meta['desc'],
+    'app_id' => $appId,
+    'return_url' => $return,
+  ]);
+  exit;
+}
 $alertClass = in_array($reason, ['invalid_app','error']) ? 'danger' : ($reason==='expired' ? 'info' : 'warning');
 
 // Build logout href preserving context if available

@@ -99,3 +99,23 @@ CREATE TABLE password_resets (
   INDEX (user_id),
   INDEX (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- API Keys for users
+-- Users can be granted permission to create personal API keys for programmatic access.
+ALTER TABLE users ADD COLUMN allow_api_keys TINYINT(1) NOT NULL DEFAULT 0 AFTER is_active;
+
+CREATE TABLE api_keys (
+  id           BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  user_id      BIGINT UNSIGNED NOT NULL,
+  label        VARCHAR(100) NULL,
+  key_prefix   CHAR(8) NOT NULL,
+  key_last4    CHAR(4) NOT NULL,
+  key_hash     VARCHAR(255) NOT NULL,
+  is_active    TINYINT(1) NOT NULL DEFAULT 1,
+  created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_used_at TIMESTAMP NULL DEFAULT NULL,
+  revoked_at   TIMESTAMP NULL DEFAULT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY uniq_user_prefix (user_id, key_prefix),
+  INDEX idx_prefix_active (key_prefix, is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
