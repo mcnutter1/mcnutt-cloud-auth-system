@@ -52,11 +52,12 @@ if($token !== ''){
   echo json_encode(['ok'=>false]); exit;
 }
 $expiresAt = (new DateTimeImmutable('+'.$CONFIG['SESSION_TTL_MIN'].' minutes'))->getTimestamp();
-// Replace principal.id with public uid for users
-if($principal['type']==='user'){
-  $principal['id'] = $identity['uid'] ?? $principal['id'];
+// Keep numeric principal id for authorization and logs; only expose uid in payload
+$principalOut = $principal;
+if($principal['type']==='user' && is_array($identity) && isset($identity['uid'])){
+  $principalOut['id'] = $identity['uid'];
 }
-$payload = [ 'iss'=>$CONFIG['APP_URL'], 'iat'=>time(), 'exp'=>$expiresAt, 'session_token'=>$token, 'principal'=>$principal, 'identity'=>$identity, 'roles'=>$roles ];
+$payload = [ 'iss'=>$CONFIG['APP_URL'], 'iat'=>time(), 'exp'=>$expiresAt, 'session_token'=>$token, 'principal'=>$principalOut, 'identity'=>$identity, 'roles'=>$roles ];
 $app = $appModel->findByAppId($appId);
 if(!$app){
   log_event($pdo, 'system', null, 'access.denied', ['app_id'=>$appId, 'reason'=>'invalid_app', 'via'=>'validate']);
