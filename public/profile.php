@@ -187,10 +187,19 @@ if($ptype==='user' && !empty($identity['username'])){
         </div>
         <div class="list-group list-group-flush">
           <?php if($recentLogins): ?>
-            <?php foreach($recentLogins as $r): $d=json_decode($r['detail'] ?? '', true); $app=$d['app_id'] ?? '—'; $dt=(new DateTime($r['ts']))->setTimezone(new DateTimeZone('America/New_York'))->format('m/d/Y h:i:s A'); ?>
+            <?php foreach($recentLogins as $r): 
+              $d = json_decode($r['detail'] ?? '', true);
+              $app = $d['app_id'] ?? '—';
+              $event = $r['event'] ?? '';
+              $etype = 'Login'; $badge='success';
+              if($event === 'api_key.auth.success'){ $etype='API Key'; $badge='success'; }
+              else if($event === 'login.success'){ $etype='Login'; $badge='success'; }
+              else if($event === 'token.validate.success'){ $etype='Token'; $badge='secondary'; }
+              $dt=(new DateTime($r['ts']))->setTimezone(new DateTimeZone('America/New_York'))->format('m/d/Y h:i:s A'); 
+            ?>
               <div class="list-group-item d-flex justify-content-between align-items-center">
                 <div>
-                  <div class="fw-semibold small"><?=htmlspecialchars($app)?> <span class="badge text-bg-success ms-1">Success</span></div>
+                  <div class="fw-semibold small"><?=htmlspecialchars($app)?> <span class="badge text-bg-<?=htmlspecialchars($badge)?> ms-1"><?=htmlspecialchars($etype)?></span></div>
                   <div class="small text-muted">IP <?=htmlspecialchars($r['ip'] ?? '')?></div>
                 </div>
                 <div class="small text-muted"><?=$dt?></div>
