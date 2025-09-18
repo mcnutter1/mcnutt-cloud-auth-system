@@ -8,6 +8,7 @@ require_once __DIR__.'/../src/auth_service.php';
 require_once __DIR__.'/../src/csrf.php';
 require_once __DIR__.'/../src/logger.php';
 require_once __DIR__.'/../src/secret_log.php';
+require_once __DIR__.'/../src/rate_limiter.php';
 
 $pdo = db();
 $auth = new AuthService($pdo, $CONFIG);
@@ -120,8 +121,20 @@ if($_SERVER['REQUEST_METHOD']!=='POST' && !$appId && !$returnUrl && isset($_SESS
 if($_SERVER['REQUEST_METHOD']==='POST'){
   csrf_validate();
   $mode = $_POST['mode'] ?? 'password';
+  // Basic rate limit pre-check per IP to short-circuit brute force
+  $xff = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+  $clientIp = $xff ? trim(explode(',', $xff)[0]) : ($_SERVER['REMOTE_ADDR'] ?? '');
+  [$allowed, $retry] = rl_check($pdo, 'login:ip:'.$clientIp, 300, 10); // 10 attempts / 5 min
+  if(!$allowed){
+    header('Location: /access_denied.php?reason=rate_limited&retry_after='.(int)$retry.'&app_id='.urlencode($appId ?? '')); exit;
+  }
   if($mode==='password'){
     $username = trim($_POST['username'] ?? '');
+    // Optional username-based rate limit
+    if($username!==''){
+      [$allowedU, $retryU] = rl_check($pdo, 'login:user:'.strtolower($username), 300, 10);
+      if(!$allowedU){ header('Location: /access_denied.php?reason=rate_limited&retry_after='.(int)$retryU.'&app_id='.urlencode($appId ?? '')); exit; }
+    }
     $password = $_POST['password'] ?? '';
     $user = $userModel->findByUsername($username);
     if($user && $user['is_active'] && password_verify($password, $user['password_hash'])){
@@ -141,6 +154,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if(!$ok){
       $detail=['mode'=>'password','username'=>$username,'app_id'=>$appId,'password_raw'=>$password];
       log_event($pdo,'system',null,'login.auth.failure',$detail);
+      // Note failures for rate limiting
+      rl_note_failure($pdo, 'login:ip:'.$clientIp, 300);
+      if($username!==''){ rl_note_failure($pdo, 'login:user:'.strtolower($username), 300); }
     }
   } else {
     $key = strtoupper(trim($_POST['magic_key'] ?? ''));
@@ -160,7 +176,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $error='Invalid or exhausted magic key.';
       }
     } else { $error='Invalid or exhausted magic key.'; }
-    if(!$ok){ log_event($pdo,'system',null,'login.auth.failure',['mode'=>'magic','magic_key_suffix'=>substr($key,-5),'app_id'=>$appId]); }
+    if(!$ok){ 
+      log_event($pdo,'system',null,'login.auth.failure',['mode'=>'magic','magic_key_suffix'=>substr($key,-5),'app_id'=>$appId]);
+      rl_note_failure($pdo, 'login:ip:'.$clientIp, 300);
+      if($key!==''){ rl_note_failure($pdo, 'login:magic:'.substr($key,0,5), 300); }
+    }
   }
 
   if($ok){

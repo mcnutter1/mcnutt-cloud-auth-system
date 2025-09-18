@@ -7,6 +7,7 @@ $pdo=db();
 $appId = $_GET['app_id'] ?? '';
 $return = $_GET['return_url'] ?? '/';
 $reason = $_GET['reason'] ?? 'not_authorized';
+$retryAfter = isset($_GET['retry_after']) ? (int)$_GET['retry_after'] : 0;
 
 // JSON response support for API callers
 function wants_json(): bool {
@@ -33,6 +34,7 @@ $reasons = [
   'inactive_app'   => ['title'=>'Application disabled', 'desc'=>'The requested application is currently disabled.'],
   'expired'        => ['title'=>'Session expired',      'desc'=>'Please sign in again to continue.'],
   'invalid_signature' => ['title'=>'Invalid signature', 'desc'=>'Signature verification failed for this request. Please try signing in again.'],
+  'rate_limited'   => ['title'=>'Too many attempts',    'desc'=>'You have made too many attempts. Please wait and try again.'],
   'error'          => ['title'=>'Something went wrong', 'desc'=>'A problem occurred processing your request.'],
 ];
 $meta = $reasons[$reason] ?? $reasons['error'];
@@ -47,6 +49,7 @@ if (wants_json()) {
     'message' => $meta['desc'],
     'app_id' => $appId,
     'return_url' => $return,
+    'retry_after' => $retryAfter,
   ]);
   exit;
 }

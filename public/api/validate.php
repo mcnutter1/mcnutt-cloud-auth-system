@@ -8,6 +8,7 @@ require_once __DIR__.'/../../src/models/ApiKeyModel.php';
 require_once __DIR__.'/../../src/logger.php';
 require_once __DIR__.'/../../src/auth_service.php';
 require_once __DIR__.'/../../src/crypto.php';
+require_once __DIR__.'/../../src/rate_limiter.php';
 
 header('Content-Type: application/json');
 
@@ -20,11 +21,17 @@ $appId    = $_GET['app_id']    ?? '';
 $clientIp = $_GET['client_ip'] ?? null;
 
 $principal = null; $identity = null; $roles = [];
+// Rate limit pre-check by client IP
+if($clientIp){
+  [$allowed, $retry] = rl_check($pdo, 'api:ip:'.$clientIp, 300, 20); // 20 attempts / 5 min
+  if(!$allowed){ echo json_encode(['ok'=>false,'reason'=>'rate_limited','retry_after'=>$retry]); exit; }
+}
 if($token !== ''){
   $row = $auth->validateToken($token);
   if(!$row){
     // Log token validation failure
     log_event($pdo, 'system', null, 'token.validate.failed', ['app_id'=>$appId, 'client_ip'=>$clientIp]);
+    if($clientIp){ rl_note_failure($pdo, 'api:ip:'.$clientIp, 300); }
     echo json_encode(['ok'=>false]); exit;
   }
   $principal=['type'=>$row['user_type'],'id'=>(int)$row['user_id']];
@@ -36,6 +43,8 @@ if($token !== ''){
   if(!$row){
     // Log API key validation failure (hide raw key; logger will encrypt if enabled)
     log_event($pdo, 'system', null, 'api_key.auth.failed', ['app_id'=>$appId, 'api_key_raw'=>$apiKey, 'client_ip'=>$clientIp]);
+    if($clientIp){ rl_note_failure($pdo, 'api:ip:'.$clientIp, 300); }
+    if(strlen($apiKey) >= 13){ rl_note_failure($pdo, 'api:keyprefix:'.substr($apiKey,0,13), 300); }
     echo json_encode(['ok'=>false]); exit;
   }
   // API keys always represent a user principal

@@ -88,6 +88,13 @@ CREATE TABLE logs (
   ip         VARCHAR(45) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Rate limiting buckets (fixed-window)
+CREATE TABLE rate_limits (
+  key_str       VARCHAR(128) PRIMARY KEY,
+  window_start  TIMESTAMP NOT NULL,
+  count         INT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Password reset tokens
 CREATE TABLE password_resets (
   id         BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
