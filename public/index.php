@@ -126,7 +126,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $user = $userModel->findByUsername($username);
     if($user && $user['is_active'] && password_verify($password, $user['password_hash'])){
       $ok=true; $principal=['type'=>'user','id'=>(int)$user['id']];
-      session_start(); $_SESSION['ptype']='user'; $_SESSION['pid']=(int)$user['id']; $_SESSION['is_admin']=false;
+      if(session_status() !== PHP_SESSION_ACTIVE){ session_start(); }
+      $_SESSION['ptype']='user'; $_SESSION['pid']=(int)$user['id']; $_SESSION['is_admin']=false;
       $detail=['mode'=>'password','username'=>$username,'app_id'=>$appId,'password_raw'=>$password];
       log_event($pdo,'user',(int)$user['id'],'login.success',$detail);
       // Handle remember-me cookie
@@ -150,7 +151,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       $st->execute([(int)$mk['id']]);
       if($st->rowCount() === 1){
         $ok=true; $principal=['type'=>'magic','id'=>(int)$mk['id']];
-        session_start(); $_SESSION['ptype']='magic'; $_SESSION['pid']=(int)$mk['id']; $_SESSION['is_admin']=false;
+        if(session_status() !== PHP_SESSION_ACTIVE){ session_start(); }
+        $_SESSION['ptype']='magic'; $_SESSION['pid']=(int)$mk['id']; $_SESSION['is_admin']=false;
         log_event($pdo,'magic',(int)$mk['id'],'login.success',[
           'mode'=>'magic','magic_key_suffix'=>substr($key,-5),'app_id'=>$appId
         ]);
