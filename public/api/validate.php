@@ -21,10 +21,16 @@ $appId    = $_GET['app_id']    ?? '';
 $clientIp = $_GET['client_ip'] ?? null;
 
 $principal = null; $identity = null; $roles = [];
-// Rate limit pre-check by client IP
+// Rate limit pre-check by client IP (counts all requests)
 if($clientIp){
-  [$allowed, $retry] = rl_check($pdo, 'api:ip:'.$clientIp, 300, 20); // 20 attempts / 5 min
-  if(!$allowed){ echo json_encode(['ok'=>false,'reason'=>'rate_limited','retry_after'=>$retry]); exit; }
+  [$allowed, $retry] = rl_check($pdo, 'api:ip:'.$clientIp, 300, 60); // 60 requests / 5 min
+  if(!$allowed){
+    log_event($pdo, 'system', null, 'rate_limited', ['via'=>'validate','client_ip'=>$clientIp, 'app_id'=>$appId]);
+    echo json_encode(['ok'=>false,'reason'=>'rate_limited','retry_after'=>$retry]);
+    exit;
+  }
+  // Count this request toward the window
+  rl_note_failure($pdo, 'api:ip:'.$clientIp, 300);
 }
 if($token !== ''){
   $row = $auth->validateToken($token);

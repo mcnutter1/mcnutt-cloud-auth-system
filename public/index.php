@@ -126,6 +126,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   $clientIp = $xff ? trim(explode(',', $xff)[0]) : ($_SERVER['REMOTE_ADDR'] ?? '');
   [$allowed, $retry] = rl_check($pdo, 'login:ip:'.$clientIp, 300, 10); // 10 attempts / 5 min
   if(!$allowed){
+    log_event($pdo, 'system', null, 'rate_limited', ['via'=>'login','client_ip'=>$clientIp, 'app_id'=>$appId]);
     header('Location: /access_denied.php?reason=rate_limited&retry_after='.(int)$retry.'&app_id='.urlencode($appId ?? '')); exit;
   }
   if($mode==='password'){
@@ -133,7 +134,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     // Optional username-based rate limit
     if($username!==''){
       [$allowedU, $retryU] = rl_check($pdo, 'login:user:'.strtolower($username), 300, 10);
-      if(!$allowedU){ header('Location: /access_denied.php?reason=rate_limited&retry_after='.(int)$retryU.'&app_id='.urlencode($appId ?? '')); exit; }
+      if(!$allowedU){ log_event($pdo, 'system', null, 'rate_limited', ['via'=>'login','client_ip'=>$clientIp, 'app_id'=>$appId, 'username'=>$username]); header('Location: /access_denied.php?reason=rate_limited&retry_after='.(int)$retryU.'&app_id='.urlencode($appId ?? '')); exit; }
     }
     $password = $_POST['password'] ?? '';
     $user = $userModel->findByUsername($username);
