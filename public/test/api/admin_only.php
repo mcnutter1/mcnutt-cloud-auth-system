@@ -16,8 +16,8 @@ $pdo = db();
 $xff = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
 $ip  = $xff ? trim(explode(',', $xff)[0]) : ($_SERVER['REMOTE_ADDR'] ?? '');
 if($ip){
-  [$allowed,$retry] = rl_check($pdo, 'api:ip:'.$ip, 300, 60);
-  if(!$allowed){ http_response_code(429); echo json_encode(['ok'=>false,'reason'=>'rate_limited','retry_after'=>$retry]); exit; }
+  [$allowed,$retry] = rl_check($pdo, 'api:ip:'.$ip, 300, 30);
+  if(!$allowed){ log_event($pdo,'system',null,'rate_limited',['via'=>'test.admin_only','client_ip'=>$ip]); http_response_code(429); echo json_encode(['ok'=>false,'reason'=>'rate_limited','retry_after'=>$retry]); exit; }
   rl_note_failure($pdo, 'api:ip:'.$ip, 300);
 }
 

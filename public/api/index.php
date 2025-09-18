@@ -3,6 +3,7 @@ require_once __DIR__.'/../../src/bootstrap.php';
 require_once __DIR__.'/../../src/db.php';
 require_once __DIR__.'/../../src/models/UserModel.php';
 require_once __DIR__.'/../../src/models/ApiKeyModel.php';
+require_once __DIR__.'/../../src/models/AppModel.php';
 require_once __DIR__.'/../../src/logger.php';
 require_once __DIR__.'/../../src/rate_limiter.php';
 
@@ -12,6 +13,7 @@ header('Cache-Control: no-store');
 $pdo = db();
 $userModel = new UserModel($pdo);
 $akm = new ApiKeyModel($pdo);
+$appModel = new AppModel($pdo);
 
 function client_ip_api(): ?string {
   $xff = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
@@ -39,7 +41,14 @@ if($route==='') $route = 'whoami';
 $ip = client_ip_api();
 // Global rate limit per IP
 [$allowed, $retry] = rl_check($pdo, 'api:ip:'.$ip, 300, 30); // 30 requests / 5 min
-if(!$allowed){ http_response_code(429); echo json_encode(['ok'=>false,'reason'=>'rate_limited','retry_after'=>$retry]); exit; }
+if(!$allowed){
+  log_event($pdo, 'system', null, 'rate_limited', ['via'=>'api.index','client_ip'=>$ip]);
+  http_response_code(429);
+  echo json_encode(['ok'=>false,'reason'=>'rate_limited','retry_after'=>$retry]);
+  exit;
+}
+// Count this request toward the window
+rl_note_failure($pdo, 'api:ip:'.$ip, 300);
 
 $key = extract_bearer_api();
 if(!$key){ http_response_code(401); echo json_encode(['ok'=>false,'reason'=>'missing_token']); exit; }
@@ -62,7 +71,12 @@ $roles    = $userModel->roles($uid);
 // Simple route table
 switch($route){
   case 'whoami':
-    echo json_encode(['ok'=>true,'route'=>'whoami','identity'=>$identity,'roles'=>$roles]);
+    // Applications enabled for this user
+    $appsEnabled = [];
+    $st=$pdo->prepare('SELECT a.app_id, a.name, a.icon, a.return_url FROM apps a JOIN user_app_access uaa ON uaa.app_id=a.id WHERE uaa.user_id=? ORDER BY a.name');
+    $st->execute([$uid]);
+    $appsEnabled = $st->fetchAll(PDO::FETCH_ASSOC);
+    echo json_encode(['ok'=>true,'route'=>'whoami','identity'=>$identity,'roles'=>$roles,'apps'=>$appsEnabled]);
     break;
   case 'admin_only':
     if(!in_array('admin', $roles, true)){
