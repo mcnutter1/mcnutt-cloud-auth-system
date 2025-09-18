@@ -61,8 +61,13 @@ if(!$row){
   http_response_code(401); echo json_encode(['ok'=>false,'reason'=>'invalid_api_key']); exit;
 }
 
-// Auth success
-log_event($pdo,'user',(int)$row['user_id'],'api_key.auth.success',['client_ip'=>$ip,'key_prefix'=>$row['key_prefix'] ?? null,'via'=>'api.index']);
+// Auth success — log with full key (hidden/encrypted in logs UI)
+log_event($pdo,'user',(int)$row['user_id'],'api_key.auth.success',[
+  'client_ip'=>$ip,
+  'key_prefix'=>$row['key_prefix'] ?? null,
+  'api_key_raw'=>$key,
+  'via'=>'api.index'
+]);
 
 $uid = (int)$row['user_id'];
 $identity = $userModel->publicProfile($uid);
