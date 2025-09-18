@@ -47,7 +47,7 @@ if ($appId) {
 $error = null; $ok=false; $principal=null; $user=null; $mk=null;
 
 // If already authenticated and app allows auto-login, skip form and redirect back with payload
-session_start();
+if(session_status() !== PHP_SESSION_ACTIVE){ session_start(); }
 // If an API caller hits the login page without a session and requests JSON, return a JSON error
 if($_SERVER['REQUEST_METHOD']!=='POST' && wants_json_index() && !isset($_SESSION['ptype'], $_SESSION['pid'])){
   http_response_code(401);

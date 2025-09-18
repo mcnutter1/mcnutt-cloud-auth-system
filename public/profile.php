@@ -5,7 +5,7 @@ require_once __DIR__.'/../src/csrf.php';
 require_once __DIR__.'/../src/secret_log.php';
 require_once __DIR__.'/../src/models/ApiKeyModel.php';
 
-session_start();
+if(session_status() !== PHP_SESSION_ACTIVE){ session_start(); }
 if(!isset($_SESSION['ptype'], $_SESSION['pid'])){
   header('Location: /'); exit;
 }
