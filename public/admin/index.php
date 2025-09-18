@@ -9,12 +9,12 @@ $pdo = db();
 $hours = 24;
 
 // Recent counts
-$recentLogins = (int)$pdo->query("SELECT COUNT(*) FROM logs WHERE event='login.success' AND ts>DATE_SUB(NOW(), INTERVAL $hours HOUR)")->fetchColumn();
-$recentFails  = (int)$pdo->query("SELECT COUNT(*) FROM logs WHERE event='login.failed'  AND ts>DATE_SUB(NOW(), INTERVAL $hours HOUR)")->fetchColumn();
-$uniqueActors = (int)$pdo->query("SELECT COUNT(DISTINCT CONCAT_WS(':',actor_type,actor_id)) FROM logs WHERE event='login.success' AND ts>DATE_SUB(NOW(), INTERVAL $hours HOUR)")->fetchColumn();
+$recentLogins = (int)$pdo->query("SELECT COUNT(*) FROM logs WHERE event='login.auth.success' AND ts>DATE_SUB(NOW(), INTERVAL $hours HOUR)")->fetchColumn();
+$recentFails  = (int)$pdo->query("SELECT COUNT(*) FROM logs WHERE event='login.auth.failure'  AND ts>DATE_SUB(NOW(), INTERVAL $hours HOUR)")->fetchColumn();
+$uniqueActors = (int)$pdo->query("SELECT COUNT(DISTINCT CONCAT_WS(':',actor_type,actor_id)) FROM logs WHERE event='login.auth.success' AND ts>DATE_SUB(NOW(), INTERVAL $hours HOUR)")->fetchColumn();
 
 // Top failed usernames (last 7 days)
-$failedRows = $pdo->query("SELECT detail FROM logs WHERE event='login.failed' AND ts>DATE_SUB(NOW(), INTERVAL 7 DAY) ORDER BY ts DESC LIMIT 1000")->fetchAll(PDO::FETCH_ASSOC);
+$failedRows = $pdo->query("SELECT detail FROM logs WHERE event='login.auth.failure' AND ts>DATE_SUB(NOW(), INTERVAL 7 DAY) ORDER BY ts DESC LIMIT 1000")->fetchAll(PDO::FETCH_ASSOC);
 $failedUsers = [];
 foreach($failedRows as $r){
   $d = json_decode($r['detail'] ?? '', true);
@@ -26,10 +26,10 @@ foreach($failedRows as $r){
 arsort($failedUsers); $topFailed = array_slice($failedUsers, 0, 5, true);
 
 // Timeline per hour (last 24h)
-$timelineRows = $pdo->query("SELECT DATE_FORMAT(ts,'%Y-%m-%d %H:00:00') AS bucket, event, COUNT(*) cnt FROM logs WHERE event IN ('login.success','login.failed') AND ts>DATE_SUB(NOW(), INTERVAL $hours HOUR) GROUP BY bucket,event ORDER BY bucket ASC")->fetchAll(PDO::FETCH_ASSOC);
+$timelineRows = $pdo->query("SELECT DATE_FORMAT(ts,'%Y-%m-%d %H:00:00') AS bucket, event, COUNT(*) cnt FROM logs WHERE event IN ('login.auth.success','login.auth.failure') AND ts>DATE_SUB(NOW(), INTERVAL $hours HOUR) GROUP BY bucket,event ORDER BY bucket ASC")->fetchAll(PDO::FETCH_ASSOC);
 $buckets=[]; $successSeries=[]; $failSeries=[];
 for($i=$hours-1;$i>=0;$i--){ $b = (new DateTime("-$i hour"))->format('Y-m-d H:00:00'); $buckets[$b]=['success'=>0,'failed'=>0]; }
-foreach($timelineRows as $row){ $b=$row['bucket']; if(isset($buckets[$b])){ $k = ($row['event']==='login.success')?'success':'failed'; $buckets[$b][$k]=(int)$row['cnt']; } }
+foreach($timelineRows as $row){ $b=$row['bucket']; if(isset($buckets[$b])){ $k = ($row['event']==='login.auth.success')?'success':'failed'; $buckets[$b][$k]=(int)$row['cnt']; } }
 $labels = array_keys($buckets);
 foreach($buckets as $vals){ $successSeries[]=$vals['success']; $failSeries[]=$vals['failed']; }
 

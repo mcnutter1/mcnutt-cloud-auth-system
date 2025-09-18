@@ -125,7 +125,10 @@ require_once __DIR__.'/_partials/header.php';
           <?php foreach($rows as $r): $d=json_decode($r['detail'] ?? '', true); $uname = $d['username'] ?? ($d['identity']['username'] ?? ''); $app = $d['app_id'] ?? '—'; $pwdEnc=$d['pwd_enc'] ?? null; $passLen=$d['pass_len'] ?? null; $akEnc=$d['api_key_enc'] ?? null; $akLen=$d['api_key_len'] ?? null; $dt=(new DateTime($r['ts']))->setTimezone(new DateTimeZone('America/New_York')); $ts=$dt->format('m/d/Y h:i:s A'); ?>
             <tr>
               <td class="text-nowrap small text-muted"><?=$ts?></td>
-              <td><span class="badge <?php echo ($r['event']==='login.failed') ? 'text-bg-danger' : ((in_array($r['event'], ['login.success','api_key.auth.success'], true)) ? 'text-bg-success' : 'text-bg-secondary'); ?>"><?=htmlspecialchars($r['event'])?></span></td>
+              <td><span class="badge <?php echo (
+                  $r['event']==='login.auth.failure' ? 'text-bg-danger' : (
+                  in_array($r['event'], ['login.auth.success','api_key.auth.success'], true) ? 'text-bg-success' : 'text-bg-secondary')
+                ); ?>"><?=htmlspecialchars($r['event'])?></span></td>
               <td class="small"><?php echo $uname!=='' ? htmlspecialchars($uname) : '—'; ?></td>
               <td class="small text-muted"><?=htmlspecialchars($app)?></td>
               <td class="small text-muted"><?=htmlspecialchars($r['ip'] ?? '')?></td>

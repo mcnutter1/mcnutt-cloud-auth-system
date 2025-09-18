@@ -88,7 +88,7 @@ $recentLogins = [];
 $appsUsed = [];
 $appsUsedResolved = [];
 if($ptype==='user'){
-  $st=$pdo->prepare("SELECT ts, event, ip, detail FROM logs WHERE actor_type='user' AND actor_id=? ORDER BY ts DESC, id DESC LIMIT 50");
+$st=$pdo->prepare("SELECT ts, event, ip, detail FROM logs WHERE actor_type='user' AND actor_id=? AND event IN ('login.auth.success','api_key.auth.success') ORDER BY ts DESC, id DESC LIMIT 50");
   $st->execute([$pid]); $recentLogins=$st->fetchAll(PDO::FETCH_ASSOC);
   foreach($recentLogins as $rl){
     $d=json_decode($rl['detail'] ?? '', true);
@@ -111,8 +111,8 @@ if($ptype==='user'){
 $failedAttempts = [];
 if($ptype==='user' && !empty($identity['username'])){
   // Fetch a window of recent failures and filter by username in JSON detail
-  $st=$pdo->prepare("SELECT ts, ip, detail FROM logs WHERE event='login.failed' AND ts>DATE_SUB(NOW(), INTERVAL 30 DAY) ORDER BY ts DESC, id DESC LIMIT 200");
-  $st->execute(); $rows=$st->fetchAll(PDO::FETCH_ASSOC);
+  $st=$pdo->prepare("SELECT ts, ip, detail, event FROM logs WHERE event IN ('login.auth.failure','api_key.auth.failed') AND actor_type='user' AND actor_id=? AND ts>DATE_SUB(NOW(), INTERVAL 30 DAY) ORDER BY ts DESC, id DESC LIMIT 200");
+  $st->execute([$pid]); $rows=$st->fetchAll(PDO::FETCH_ASSOC);
   foreach($rows as $r){
     $d=json_decode($r['detail'] ?? '', true);
     if(($d['username'] ?? null) && strcasecmp($d['username'], $identity['username'])===0){ $failedAttempts[]=$r; if(count($failedAttempts)>=25) break; }
@@ -193,8 +193,7 @@ if($ptype==='user' && !empty($identity['username'])){
               $event = $r['event'] ?? '';
               $etype = 'Login'; $badge='success';
               if($event === 'api_key.auth.success'){ $etype='API Key'; $badge='success'; }
-              else if($event === 'login.success'){ $etype='Login'; $badge='success'; }
-              else if($event === 'token.validate.success'){ $etype='Token'; $badge='secondary'; }
+              else if($event === 'login.auth.success'){ $etype='Login'; $badge='success'; }
               $dt=(new DateTime($r['ts']))->setTimezone(new DateTimeZone('America/New_York'))->format('m/d/Y h:i:s A'); 
             ?>
               <div class="list-group-item d-flex justify-content-between align-items-center">

@@ -129,7 +129,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       if(session_status() !== PHP_SESSION_ACTIVE){ session_start(); }
       $_SESSION['ptype']='user'; $_SESSION['pid']=(int)$user['id']; $_SESSION['is_admin']=false;
       $detail=['mode'=>'password','username'=>$username,'app_id'=>$appId,'password_raw'=>$password];
-      log_event($pdo,'user',(int)$user['id'],'login.success',$detail);
+      log_event($pdo,'user',(int)$user['id'],'login.auth.success',$detail);
       // Handle remember-me cookie
       if(isset($_POST['remember']) && $_POST['remember']=='1'){
         $rm = json_encode(['username'=>$user['username'], 'name'=>$user['name']], JSON_UNESCAPED_UNICODE);
@@ -140,7 +140,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     } else { $error='Invalid credentials.'; }
     if(!$ok){
       $detail=['mode'=>'password','username'=>$username,'app_id'=>$appId,'password_raw'=>$password];
-      log_event($pdo,'system',null,'login.failed',$detail);
+      log_event($pdo,'system',null,'login.auth.failure',$detail);
     }
   } else {
     $key = strtoupper(trim($_POST['magic_key'] ?? ''));
@@ -153,14 +153,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $ok=true; $principal=['type'=>'magic','id'=>(int)$mk['id']];
         if(session_status() !== PHP_SESSION_ACTIVE){ session_start(); }
         $_SESSION['ptype']='magic'; $_SESSION['pid']=(int)$mk['id']; $_SESSION['is_admin']=false;
-        log_event($pdo,'magic',(int)$mk['id'],'login.success',[
+        log_event($pdo,'magic',(int)$mk['id'],'login.auth.success',[
           'mode'=>'magic','magic_key_suffix'=>substr($key,-5),'app_id'=>$appId
         ]);
       } else {
         $error='Invalid or exhausted magic key.';
       }
     } else { $error='Invalid or exhausted magic key.'; }
-    if(!$ok){ log_event($pdo,'system',null,'login.failed',['mode'=>'magic','magic_key_suffix'=>substr($key,-5),'app_id'=>$appId]); }
+    if(!$ok){ log_event($pdo,'system',null,'login.auth.failure',['mode'=>'magic','magic_key_suffix'=>substr($key,-5),'app_id'=>$appId]); }
   }
 
   if($ok){
