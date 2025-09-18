@@ -61,7 +61,8 @@ function handle_sso_callback(){
 }
 function revalidate(string $sessionToken){
   global $config;
-  $resp = @file_get_contents($config['validate_endpoint'].'?token='.urlencode($sessionToken).'&app_id='.urlencode($config['app_id']));
+  $cip = client_ip_c();
+  $resp = @file_get_contents($config['validate_endpoint'].'?token='.urlencode($sessionToken).'&app_id='.urlencode($config['app_id']).($cip?('&client_ip='.urlencode($cip)):'') );
   if(!$resp) return false;
   $data = json_decode($resp,true);
   if(!($data['ok']??false)) return false;
@@ -162,7 +163,8 @@ if(isset($_GET['logout'])){
 // Intended for server-to-server API requests in downstream apps.
 function validate_api_key_c(string $apiKey){
   global $config;
-  $resp = @file_get_contents($config['validate_endpoint'].'?api_key='.urlencode($apiKey).'&app_id='.urlencode($config['app_id']));
+  $cip = client_ip_c();
+  $resp = @file_get_contents($config['validate_endpoint'].'?api_key='.urlencode($apiKey).'&app_id='.urlencode($config['app_id']).($cip?('&client_ip='.urlencode($cip)):'') );
   if(!$resp) return null;
   $data = json_decode($resp,true);
   if(!($data['ok']??false)) return null;
@@ -186,4 +188,10 @@ function extract_api_key_c(): ?string {
   if(isset($_SERVER['HTTP_X_API_KEY']) && $_SERVER['HTTP_X_API_KEY']!=='') return $_SERVER['HTTP_X_API_KEY'];
   if(isset($_GET['api_key']) && is_string($_GET['api_key']) && $_GET['api_key']!=='') return $_GET['api_key'];
   return null;
+}
+
+function client_ip_c(): ?string {
+  $xff = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+  if($xff){ return trim(explode(',', $xff)[0]); }
+  return $_SERVER['REMOTE_ADDR'] ?? null;
 }

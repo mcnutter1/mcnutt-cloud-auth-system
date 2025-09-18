@@ -35,7 +35,20 @@ function log_event(PDO $pdo, string $actorType, ?int $actorId, string $event, $d
         $json = json_encode($detail, JSON_UNESCAPED_SLASHES);
       }
     }
-    $ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? ($_SERVER['REMOTE_ADDR'] ?? null);
+    // Determine IP. Allow explicit override via detail['client_ip'] when provided
+    $ip = null;
+    if(is_array($detail) && !empty($detail['client_ip'])){
+      $ip = (string)$detail['client_ip'];
+    }
+    if($ip === null || $ip === ''){
+      $xff = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+      if($xff !== ''){
+        // take first IP from XFF list
+        $ip = trim(explode(',', $xff)[0]);
+      } else {
+        $ip = $_SERVER['REMOTE_ADDR'] ?? null;
+      }
+    }
     $st = $pdo->prepare("INSERT INTO logs (actor_type, actor_id, event, detail, ip) VALUES (?,?,?,?,?)");
     $st->execute([$actorType, $actorId, $event, $json, $ip]);
   } catch (Throwable $e) {

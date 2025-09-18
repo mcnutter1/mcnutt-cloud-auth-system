@@ -14,27 +14,28 @@ header('Content-Type: application/json');
 $pdo = db(); $auth = new AuthService($pdo, $CONFIG);
 $appModel=new AppModel($pdo); $userModel=new UserModel($pdo); $keyModel=new MagicKeyModel($pdo); $apiKeyModel=new ApiKeyModel($pdo);
 
-$token  = $_GET['token']   ?? '';
-$apiKey = $_GET['api_key'] ?? '';
-$appId  = $_GET['app_id']  ?? '';
+$token    = $_GET['token']     ?? '';
+$apiKey   = $_GET['api_key']   ?? '';
+$appId    = $_GET['app_id']    ?? '';
+$clientIp = $_GET['client_ip'] ?? null;
 
 $principal = null; $identity = null; $roles = [];
 if($token !== ''){
   $row = $auth->validateToken($token);
   if(!$row){
     // Log token validation failure
-    log_event($pdo, 'system', null, 'token.validate.failed', ['app_id'=>$appId]);
+    log_event($pdo, 'system', null, 'token.validate.failed', ['app_id'=>$appId, 'client_ip'=>$clientIp]);
     echo json_encode(['ok'=>false]); exit;
   }
   $principal=['type'=>$row['user_type'],'id'=>(int)$row['user_id']];
   $identity = ($row['user_type']==='user') ? $userModel->publicProfile((int)$row['user_id']) : $keyModel->publicProfile((int)$row['user_id']);
   $roles    = ($row['user_type']==='user') ? $userModel->roles((int)$row['user_id']) : $keyModel->roles((int)$row['user_id']);
-  log_event($pdo, $principal['type'], (int)$principal['id'], 'token.validate.success', ['app_id'=>$appId]);
+  log_event($pdo, $principal['type'], (int)$principal['id'], 'token.validate.success', ['app_id'=>$appId, 'client_ip'=>$clientIp]);
 } elseif ($apiKey !== '') {
   $row = $apiKeyModel->validate($apiKey);
   if(!$row){
     // Log API key validation failure (hide raw key; logger will encrypt if enabled)
-    log_event($pdo, 'system', null, 'api_key.auth.failed', ['app_id'=>$appId, 'api_key_raw'=>$apiKey]);
+    log_event($pdo, 'system', null, 'api_key.auth.failed', ['app_id'=>$appId, 'api_key_raw'=>$apiKey, 'client_ip'=>$clientIp]);
     echo json_encode(['ok'=>false]); exit;
   }
   // API keys always represent a user principal
@@ -47,6 +48,7 @@ if($token !== ''){
     'key_prefix'   => $row['key_prefix'] ?? null,
     // Store full API key securely; logger will encrypt and hide it in UI
     'api_key_raw'  => $apiKey,
+    'client_ip'    => $clientIp,
   ]);
 } else {
   echo json_encode(['ok'=>false]); exit;
@@ -60,11 +62,11 @@ if($principal['type']==='user' && is_array($identity) && isset($identity['uid'])
 $payload = [ 'iss'=>$CONFIG['APP_URL'], 'iat'=>time(), 'exp'=>$expiresAt, 'session_token'=>$token, 'principal'=>$principalOut, 'identity'=>$identity, 'roles'=>$roles ];
 $app = $appModel->findByAppId($appId);
 if(!$app){
-  log_event($pdo, 'system', null, 'access.denied', ['app_id'=>$appId, 'reason'=>'invalid_app', 'via'=>'validate']);
+  log_event($pdo, 'system', null, 'access.denied', ['app_id'=>$appId, 'reason'=>'invalid_app', 'via'=>'validate', 'client_ip'=>$clientIp]);
   echo json_encode(['ok'=>false]); exit;
 }
 if(!$app['is_active']){
-  log_event($pdo, $principal['type'], (int)$principal['id'], 'access.denied', ['app_id'=>$appId, 'reason'=>'inactive_app', 'via'=>'validate']);
+  log_event($pdo, $principal['type'], (int)$principal['id'], 'access.denied', ['app_id'=>$appId, 'reason'=>'inactive_app', 'via'=>'validate', 'client_ip'=>$clientIp]);
   echo json_encode(['ok'=>false]); exit;
 }
 
@@ -81,10 +83,10 @@ if($principal['type']==='user'){
   $allowed = ((int)$st->fetchColumn())>0;
 }
 if(!$allowed){
-  log_event($pdo, $principal['type'], (int)$principal['id'], 'access.denied', ['app_id'=>$appId, 'app_db_id'=>$aid, 'via'=>'validate']);
+  log_event($pdo, $principal['type'], (int)$principal['id'], 'access.denied', ['app_id'=>$appId, 'app_db_id'=>$aid, 'via'=>'validate', 'client_ip'=>$clientIp]);
   echo json_encode(['ok'=>false]); exit;
 }
 try{ $secret = $appModel->getSecretForVerify($app); }catch(Throwable $e){ echo json_encode(['ok'=>false]); exit; }
 $resp = [ 'ok'=>true, 'payload'=>$payload, 'sig'=>hmac_sign(json_encode($payload, JSON_UNESCAPED_SLASHES), $secret) ];
-log_event($pdo, $principal['type'], (int)$principal['id'], 'access.authorized', ['app_id'=>$appId, 'app_db_id'=>$aid, 'via'=>'validate']);
+log_event($pdo, $principal['type'], (int)$principal['id'], 'access.authorized', ['app_id'=>$appId, 'app_db_id'=>$aid, 'via'=>'validate', 'client_ip'=>$clientIp]);
 echo json_encode($resp);
