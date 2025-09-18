@@ -64,8 +64,15 @@ switch($route){
   case 'whoami':
     echo json_encode(['ok'=>true,'route'=>'whoami','identity'=>$identity,'roles'=>$roles]);
     break;
+  case 'admin_only':
+    if(!in_array('admin', $roles, true)){
+      http_response_code(403);
+      echo json_encode(['ok'=>false,'reason'=>'forbidden','message'=>'Requires admin role']);
+      break;
+    }
+    echo json_encode(['ok'=>true,'route'=>'admin_only','message'=>'Admin endpoint access granted']);
+    break;
   default:
     http_response_code(404);
     echo json_encode(['ok'=>false,'reason'=>'not_found','route'=>$route]);
 }
-

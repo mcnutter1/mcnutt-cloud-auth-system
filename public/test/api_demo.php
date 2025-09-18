@@ -60,12 +60,12 @@ async function callApi(path){
 }
 document.getElementById('btnWhoami').addEventListener('click', () => {
   const key = document.getElementById('apiKey').value.trim();
-  const url = '/test/api/whoami.php' + (key ? ('?api_key=' + encodeURIComponent(key)) : '');
+  const url = '/api/?r=whoami' + (key ? ('&api_key=' + encodeURIComponent(key)) : '');
   callApi(url);
 });
 document.getElementById('btnAdmin').addEventListener('click', () => {
   const key = document.getElementById('apiKey').value.trim();
-  const url = '/test/api/admin_only.php' + (key ? ('?api_key=' + encodeURIComponent(key)) : '');
+  const url = '/api/?r=admin_only' + (key ? ('&api_key=' + encodeURIComponent(key)) : '');
   callApi(url);
 });
 </script>
