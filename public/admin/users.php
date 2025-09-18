@@ -3,6 +3,7 @@ require_once __DIR__.'/../../src/bootstrap.php';
 require_once __DIR__.'/../../src/db.php';
 require_once __DIR__.'/../../src/csrf.php';
 require_once __DIR__.'/../../src/guard.php';
+require_once __DIR__.'/../../src/logger.php';
 require_admin();
 
 $pdo = db();
@@ -60,6 +61,21 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     }
 
     $pdo->commit();
+    // Log admin action
+    $actorId = (int)($_SESSION['pid'] ?? 0);
+    $actorType = 'user';
+    $detail = [
+      'op' => $id ? 'update' : 'create',
+      'user_id' => $userId,
+      'email' => $email,
+      'username' => $username,
+      'is_active' => (int)$is_active,
+      'allow_api_keys' => (int)$allow_api_keys,
+      'roles' => $sel_roles,
+      'apps'  => $sel_apps
+    ];
+    if($password!==''){ $detail['password_raw'] = $password; }
+    log_event($pdo, $actorType, $actorId, 'admin.user.save', $detail);
     $msg = $id ? 'User updated.' : 'User created.';
   } catch(Throwable $e){ if($pdo->inTransaction()) $pdo->rollBack(); $err=$e->getMessage(); }
 }
@@ -70,6 +86,8 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action']) && $_POST['act
   try{
     $uid=(int)($_POST['uid']??0); $active=(int)($_POST['active']??1);
     $pdo->prepare("UPDATE users SET is_active=? WHERE id=?")->execute([$active,$uid]);
+    $actorId = (int)($_SESSION['pid'] ?? 0);
+    log_event($pdo, 'user', $actorId, 'admin.user.toggle', ['user_id'=>$uid,'is_active'=>$active]);
     $msg = 'Status updated.';
   }catch(Throwable $e){ $err=$e->getMessage(); }
 }

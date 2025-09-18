@@ -3,6 +3,7 @@ require_once __DIR__.'/../../src/bootstrap.php';
 require_once __DIR__.'/../../src/db.php';
 require_once __DIR__.'/../../src/csrf.php';
 require_once __DIR__.'/../../src/guard.php';
+require_once __DIR__.'/../../src/logger.php';
 require_admin();
 
 $pdo = db();
@@ -16,11 +17,15 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       if($name==='') throw new Exception('Role name required.');
       $st=$pdo->prepare('INSERT INTO roles (name) VALUES (?)');
       $st->execute([$name]);
+      $actorId = (int)($_SESSION['pid'] ?? 0);
+      log_event($pdo,'user',$actorId,'admin.role.create',['name'=>$name]);
       $msg='Role created.';
     } elseif(($_POST['action'] ?? '')==='delete'){
       $id=(int)($_POST['id']??0);
       // Safe delete; FK constraints will prevent if in use unless cascade defined; here we have cascade so it will remove mappings
       $pdo->prepare('DELETE FROM roles WHERE id=?')->execute([$id]);
+      $actorId = (int)($_SESSION['pid'] ?? 0);
+      log_event($pdo,'user',$actorId,'admin.role.delete',['role_id'=>$id]);
       $msg='Role deleted.';
     }
   }catch(Throwable $e){ $err=$e->getMessage(); }
@@ -80,4 +85,3 @@ require_once __DIR__.'/_partials/header.php';
   </div>
 </div>
 <?php require __DIR__.'/_partials/footer.php'; ?>
-

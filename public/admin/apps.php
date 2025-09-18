@@ -3,6 +3,7 @@ require_once __DIR__.'/../../src/bootstrap.php';
 require_once __DIR__.'/../../src/db.php';
 require_once __DIR__.'/../../src/csrf.php';
 require_once __DIR__.'/../../src/guard.php';
+require_once __DIR__.'/../../src/logger.php';
 require_admin();
 
 $pdo = db();
@@ -29,6 +30,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       $st = $pdo->prepare($sql);
       $st->execute($params);
       $msg='App updated.';
+      // Log update
+      $actorId = (int)($_SESSION['pid'] ?? 0);
+      $detail = [ 'op'=>'update','app_db_id'=>$id,'app_id'=>$app_id,'name'=>$name,'return_url'=>$return_url,'icon'=>$icon?:null,'is_active'=>(int)$is_active,'auto_login'=>(int)$auto_login,'secret_updated'=>($secret_plain!=='') ];
+      log_event($pdo,'user',$actorId,'admin.app.save',$detail);
     } else {
       if($app_id===''||$name===''||$return_url==='') throw new Exception('App ID, Name, and Return URL are required.');
       if($secret_plain==='') throw new Exception('Secret is required for new applications.');
@@ -36,6 +41,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       $st=$pdo->prepare('INSERT INTO apps (app_id,name,return_url,icon,secret_hash,secret_plain,is_active,auto_login) VALUES (?,?,?,?,?,?,?,?)');
       $st->execute([$app_id,$name,$return_url,($icon!==''?$icon:null),$secret_hash,$secret_plain,$is_active,$auto_login]);
       $msg='App created.';
+      // Log create
+      $actorId = (int)($_SESSION['pid'] ?? 0);
+      $detail = [ 'op'=>'create','app_id'=>$app_id,'name'=>$name,'return_url'=>$return_url,'icon'=>$icon?:null,'is_active'=>(int)$is_active,'auto_login'=>(int)$auto_login ];
+      log_event($pdo,'user',$actorId,'admin.app.save',$detail);
     }
   }catch(Throwable $e){ $err=$e->getMessage(); }
 }
@@ -43,7 +52,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 // Toggle
 if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action']) && $_POST['action']==='toggle'){
   csrf_validate();
-  try{ $id=(int)$_POST['id']; $active=(int)$_POST['active']; $pdo->prepare('UPDATE apps SET is_active=? WHERE id=?')->execute([$active,$id]); $msg='Status updated.'; }catch(Throwable $e){ $err=$e->getMessage(); }
+  try{ $id=(int)$_POST['id']; $active=(int)$_POST['active']; $pdo->prepare('UPDATE apps SET is_active=? WHERE id=?')->execute([$active,$id]); $msg='Status updated.'; $actorId=(int)($_SESSION['pid'] ?? 0); log_event($pdo,'user',$actorId,'admin.app.toggle',['app_db_id'=>$id,'is_active'=>$active]); }catch(Throwable $e){ $err=$e->getMessage(); }
 }
 
 $apps = $pdo->query('SELECT * FROM apps ORDER BY created_at DESC')->fetchAll(PDO::FETCH_ASSOC);

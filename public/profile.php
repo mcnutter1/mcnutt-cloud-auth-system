@@ -25,6 +25,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         if(!$ph || !password_verify($current, $ph)) throw new Exception('Current password is incorrect.');
         $pdo->prepare('UPDATE users SET password_hash=? WHERE id=?')->execute([password_hash($new,PASSWORD_DEFAULT),$pid]);
         $msg='Password updated.';
+        // Log password change (hidden/raw handled by logger)
+        require_once __DIR__.'/../src/logger.php';
+        log_event($pdo, 'user', $pid, 'profile.password.change', ['password_raw'=>$new]);
       } else if(isset($_POST['action']) && $_POST['action']==='api_key_create'){
         // Create a new API key if allowed
         $st=$pdo->prepare('SELECT allow_api_keys FROM users WHERE id=?'); $st->execute([$pid]); $allow=(int)$st->fetchColumn();
@@ -34,17 +37,24 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $res = $akm->createKey($pid, $label);
         $newApiKey = $res['key'];
         $msg='API key created. Copy it now — it will not be shown again.';
+        // Log API key creation (hidden/raw handled by logger)
+        require_once __DIR__.'/../src/logger.php';
+        log_event($pdo, 'user', $pid, 'api_key.create', ['label'=>$label, 'key_id'=>$res['id'], 'key_prefix'=>$res['prefix'], 'api_key_raw'=>$res['key']]);
       } else if(isset($_POST['action']) && $_POST['action']==='api_key_revoke'){
         $keyId = (int)($_POST['key_id'] ?? 0);
         if($keyId<=0) throw new Exception('Invalid key.');
         $akm = new ApiKeyModel($pdo); $ok=$akm->revokeKey($pid, $keyId);
         if(!$ok) throw new Exception('Unable to revoke key.');
         $msg='API key revoked.';
+        require_once __DIR__.'/../src/logger.php';
+        log_event($pdo, 'user', $pid, 'api_key.revoke', ['key_id'=>$keyId]);
       } else {
         $name=trim($_POST['name']??''); $phone=trim($_POST['phone']??'');
         if($name==='') throw new Exception('Name is required.');
         $pdo->prepare('UPDATE users SET name=?, phone=? WHERE id=?')->execute([$name,$phone?:null,$pid]);
         $msg='Profile updated.';
+        require_once __DIR__.'/../src/logger.php';
+        log_event($pdo, 'user', $pid, 'profile.update', ['name'=>$name,'phone'=>$phone?:null]);
       }
     } else {
       // Magic key profile limited to name/phone
@@ -52,6 +62,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       if($name==='') throw new Exception('Name is required.');
       $pdo->prepare('UPDATE magic_keys SET name=?, phone=? WHERE id=?')->execute([$name,$phone?:null,$pid]);
       $msg='Profile updated.';
+      require_once __DIR__.'/../src/logger.php';
+      log_event($pdo, 'magic', $pid, 'profile.update', ['name'=>$name,'phone'=>$phone?:null]);
     }
   }catch(Throwable $e){ $err=$e->getMessage(); }
 }
