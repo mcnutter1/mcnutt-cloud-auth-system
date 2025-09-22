@@ -36,10 +36,10 @@ require_once __DIR__.'/_partials/header.php';
   <?php if($msg): ?><div class="alert alert-success"><?=htmlspecialchars($msg)?></div><?php endif; ?>
   <?php if($err): ?><div class="alert alert-danger"><?=htmlspecialchars($err)?></div><?php endif; ?>
 
-  <div class="card shadow-sm mb-4"><div class="card-body">
-    <h2 class="h6 mb-3">MFA · SMS Provider</h2>
-    <form method="post">
-      <?php csrf_field(); ?>
+  <form method="post">
+    <?php csrf_field(); ?>
+    <div class="card shadow-sm mb-4"><div class="card-body">
+      <h2 class="h6 mb-3">MFA · SMS Provider</h2>
       <div class="mb-3">
         <label class="form-label">Provider</label>
         <select class="form-select" name="SMS_PROVIDER">
@@ -53,24 +53,24 @@ require_once __DIR__.'/_partials/header.php';
         <div class="col-md-6"><label class="form-label">Twilio API Key Secret (optional)</label><input class="form-control" name="TWILIO_API_KEY_SECRET" value="<?=htmlspecialchars($vals['TWILIO_API_KEY_SECRET'] ?? '')?>" placeholder="••••••••"></div>
         <div class="col-md-6"><label class="form-label">Twilio From (number or Messaging Service SID)</label><input class="form-control" name="TWILIO_FROM" value="<?=htmlspecialchars($vals['TWILIO_FROM'] ?? '')?>" placeholder="+15551234567 or MGxxxxxxxx"></div>
       </div>
-      <div class="mt-3"><button class="btn btn-primary">Save Settings</button></div>
-    </form>
-    <div class="form-text mt-2">Use Auth Token OR API Key SID/Secret. Provide Account SID, and either a valid Twilio phone number or Messaging Service SID in From.</div>
-  </div></div>
+      <div class="form-text mt-2">Use Auth Token OR API Key SID/Secret. Provide Account SID, and either a valid Twilio phone number or Messaging Service SID in From.</div>
+    </div></div>
 
-  <div class="card shadow-sm mb-4"><div class="card-body">
-    <h2 class="h6 mb-3">MFA · Email Provider (SendGrid)</h2>
-    <form method="post">
-      <?php csrf_field(); ?>
+    <div class="card shadow-sm mb-4"><div class="card-body">
+      <h2 class="h6 mb-3">MFA · Email Provider (SendGrid)</h2>
       <div class="row g-3">
         <div class="col-md-6"><label class="form-label">SendGrid API Key</label><input class="form-control" name="SENDGRID_API_KEY" value="<?=htmlspecialchars($vals['SENDGRID_API_KEY'] ?? '')?>" placeholder="SG.xxxxxx"></div>
         <div class="col-md-6"><label class="form-label">From Email</label><input class="form-control" name="SENDGRID_FROM_EMAIL" value="<?=htmlspecialchars($vals['SENDGRID_FROM_EMAIL'] ?? '')?>" placeholder="no-reply@example.com"></div>
         <div class="col-md-6"><label class="form-label">From Name</label><input class="form-control" name="SENDGRID_FROM_NAME" value="<?=htmlspecialchars($vals['SENDGRID_FROM_NAME'] ?? '')?>" placeholder="Secure Login"></div>
       </div>
-      <div class="mt-3"><button class="btn btn-primary">Save Settings</button></div>
-    </form>
-    <div class="form-text mt-2">Emails are sent via SendGrid with a branded HTML template and a 6‑digit verification code.</div>
-  </div></div>
+      <div class="form-text mt-2">Emails are sent via SendGrid with a branded HTML template and a 6‑digit verification code.</div>
+    </div></div>
+
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary">Save Settings</button>
+      <a class="btn btn-outline-secondary" href="/admin/settings.php">Cancel</a>
+    </div>
+  </form>
 
 </div>
 <?php require __DIR__.'/_partials/footer.php'; ?>

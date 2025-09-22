@@ -16,6 +16,8 @@ $pid   = (int)$_SESSION['pid'];
 $appId     = $_GET['app_id'] ?? $_POST['app_id'] ?? '';
 $returnUrl = $_GET['return_url'] ?? $_POST['return_url'] ?? '/';
 $message   = null; $error = null; $masked = null; $sentOk = false; $expiresSeconds = 600;
+// Remember last-used MFA method per app in session
+$lastMethod = $_SESSION['mfa_last_method'][$appId] ?? null;
 
 // Resolve app context and MFA settings
 $appModel = new AppModel($pdo);
@@ -41,6 +43,8 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     if(!$method || ($method==='email' && !$allowEmail) || ($method==='sms' && !$allowSms)){
       $error = 'Choose a valid delivery method.';
     } else {
+      // Remember last used method for this app
+      $_SESSION['mfa_last_method'][$appId] = $method;
       // Determine destination
       if($method==='email'){
         if($ptype==='user'){
@@ -131,7 +135,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         </div><?php endif; ?>
         <?php if($error): ?><div class="alert alert-danger" role="alert"><?=htmlspecialchars($error)?></div><?php endif; ?>
 
-        <form method="post" class="mb-3">
+        <form method="post" class="mb-3" id="mfa-send-form" <?php if($sentOk): ?>style="display:none"<?php endif; ?>>
           <?php csrf_field(); ?>
           <input type="hidden" name="app_id" value="<?=htmlspecialchars($appId)?>"/>
           <input type="hidden" name="return_url" value="<?=htmlspecialchars($returnUrl)?>"/>
@@ -139,9 +143,9 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
           <div class="mb-2">
             <label class="form-label small text-muted">Send code via</label>
             <div class="select-with-caret">
-              <select class="form-select" name="method" aria-label="Delivery method">
-                <?php if($allowEmail): ?><option value="email">Email</option><?php endif; ?>
-                <?php if($allowSms): ?><option value="sms">Text message (SMS)</option><?php endif; ?>
+              <select class="form-select" name="method" aria-label="Delivery method" id="mfa-method">
+                <?php if($allowEmail): ?><option value="email" <?php if(($lastMethod??'')==='email') echo 'selected'; ?>>Email</option><?php endif; ?>
+                <?php if($allowSms): ?><option value="sms" <?php if(($lastMethod??'')==='sms') echo 'selected'; ?>>Text message (SMS)</option><?php endif; ?>
               </select>
               <span class="material-symbols-rounded select-caret" aria-hidden="true">expand_more</span>
             </div>
@@ -149,16 +153,19 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
           <button class="btn btn-outline-primary w-100">Send verification code</button>
         </form>
 
-        <form method="post">
+        <form method="post" id="mfa-verify-form" <?php if(!$sentOk): ?>style="display:none"<?php endif; ?>>
           <?php csrf_field(); ?>
           <input type="hidden" name="app_id" value="<?=htmlspecialchars($appId)?>"/>
           <input type="hidden" name="return_url" value="<?=htmlspecialchars($returnUrl)?>"/>
           <input type="hidden" name="action" value="verify"/>
-          <div class="form-floating mb-3">
-            <input type="text" class="form-control" id="f-code" name="code" placeholder="123456" inputmode="numeric" autocomplete="one-time-code" required>
-            <label for="f-code">Verification code</label>
+          <div class="mb-2">
+            <label class="form-label small text-muted" for="f-code">Verification code</label>
+            <input type="text" class="form-control text-center" id="f-code" name="code" placeholder="123456" inputmode="numeric" autocomplete="one-time-code" required style="font-size:28px; letter-spacing:4px; padding:14px 10px;">
           </div>
-          <button class="btn btn-primary w-100">Verify and continue</button>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <button class="btn btn-primary">Verify and continue</button>
+            <button class="btn btn-link btn-sm" type="button" id="mfa-resend-link">Resend code</button>
+          </div>
         </form>
       </div>
     </div>
@@ -173,6 +180,21 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
   function fmt(s){ var m=Math.floor(s/60), ss=s%60; return String(m).padStart(1,'0')+':'+String(ss).padStart(2,'0'); }
   function tick(){ if(total<=0){ el.textContent='00:00'; return; } el.textContent=fmt(total); total--; setTimeout(tick,1000); }
   tick();
+})();
+// Resend code toggles
+(function(){
+  var resend = document.getElementById('mfa-resend-link');
+  if(!resend) return;
+  resend.addEventListener('click', function(){
+    var sendForm = document.getElementById('mfa-send-form');
+    var verifyForm = document.getElementById('mfa-verify-form');
+    if(sendForm && verifyForm){
+      sendForm.style.display='block';
+      verifyForm.style.display='none';
+      // Optionally clear code field
+      var codeEl=document.getElementById('f-code'); if(codeEl) codeEl.value='';
+    }
+  });
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
