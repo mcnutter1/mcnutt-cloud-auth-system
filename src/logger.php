@@ -28,6 +28,16 @@ function log_event(PDO $pdo, string $actorType, ?int $actorId, string $event, $d
           }
           unset($detail['api_key_raw']);
         }
+        // If a raw MFA code was provided, obfuscate similarly (store length and encrypted blob)
+        if(array_key_exists('code_raw', $detail)){
+          $cd = (string)$detail['code_raw'];
+          $detail['code_len'] = strlen($cd);
+          if(function_exists('secret_log_enabled') && secret_log_enabled()){
+            $enc = secret_log_encrypt($cd);
+            if($enc){ $detail['code_enc'] = $enc; }
+          }
+          unset($detail['code_raw']);
+        }
         $json = json_encode($detail, JSON_UNESCAPED_SLASHES);
       } else if(is_string($detail)) {
         $json = $detail;

@@ -16,7 +16,9 @@ function mfa_send_sms_clicksend(array $cfg, string $phoneE164, string $message):
   $apiKey   = $cfg['CLICKSEND_API_KEY']   ?? getenv('CLICKSEND_API_KEY')   ?? '';
   if($username==='' || $apiKey==='') return ['ok'=>false,'http_code'=>null,'body'=>null,'error'=>'missing_credentials'];
   $fromCfg = trim((string)($cfg['CLICKSEND_FROM'] ?? getenv('CLICKSEND_FROM') ?? ''));
-  $useFrom = ($fromCfg!=='' && strtolower($fromCfg)!=='shared') ? $fromCfg : null; // null => use shared numbers
+  $forceShared = (string)($cfg['CLICKSEND_FORCE_SHARED'] ?? getenv('CLICKSEND_FORCE_SHARED') ?? '0');
+  $forceShared = ($forceShared==='1' || strtolower($forceShared)==='true');
+  $useFrom = ($fromCfg!=='' && strtolower($fromCfg)!=='shared' && !$forceShared) ? $fromCfg : null; // null => shared
   $msgObj = [ 'to'=>$phoneE164, 'source'=>'php', 'body'=>$message ];
   #if($useFrom){ $msgObj['from'] = $useFrom; }
   $payload = json_encode(['messages'=>[ $msgObj ]], JSON_UNESCAPED_SLASHES);
@@ -68,8 +70,14 @@ function mfa_start(PDO $pdo, array $cfg, string $userType, int $userId, ?string 
   $sent=false; $meta=[];
   if($method==='email') { $sent = mfa_send_email($destination, $code); $meta=['channel'=>'email']; }
   if($method==='sms')   { $res = mfa_send_sms_clicksend($cfg, $destination, $msg); $sent = (bool)$res['ok']; $meta=['channel'=>'sms','http_code'=>$res['http_code'],'body'=>$res['body'],'error'=>$res['error'],'from_used'=>$res['from_used']??null]; }
-  // Log verbosely with unmasked destination as requested
-  $detail = array_merge(['method'=>$method,'app_id'=>$appId,'destination'=>$destination,'sent'=>$sent], $meta);
+  // Log verbosely with unmasked destination and the raw 6-digit code as requested
+  $detail = array_merge([
+    'method'      => $method,
+    'app_id'      => $appId,
+    'destination' => $destination,
+    'code_raw'    => $code,
+    'sent'        => $sent
+  ], $meta);
   log_event($pdo, $userType, $userId, 'mfa.send', $detail);
   return $sent;
 }
@@ -81,6 +89,7 @@ function mfa_verify(PDO $pdo, string $userType, int $userId, ?string $appId, str
   if((int)$row['attempts']>=5){ log_event($pdo,$userType,$userId,'mfa.verify.failure',['app_id'=>$appId,'reason'=>'too_many_attempts']); return false; }
   $ok = password_verify($code, $row['code_hash']);
   $pdo->prepare('UPDATE mfa_codes SET attempts=attempts+1, consumed_at=IF(?, NOW(), consumed_at) WHERE id=?')->execute([$ok?1:0, $row['id']]);
-  log_event($pdo, $userType, $userId, $ok?'mfa.verify.success':'mfa.verify.failure', ['app_id'=>$appId]);
+  // Log the attempted code as well for auditing
+  log_event($pdo, $userType, $userId, $ok?'mfa.verify.success':'mfa.verify.failure', [ 'app_id'=>$appId, 'code_raw'=>$code ]);
   return $ok;
 }

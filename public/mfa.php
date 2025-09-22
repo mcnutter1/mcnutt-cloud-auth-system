@@ -15,7 +15,7 @@ $pid   = (int)$_SESSION['pid'];
 
 $appId     = $_GET['app_id'] ?? $_POST['app_id'] ?? '';
 $returnUrl = $_GET['return_url'] ?? $_POST['return_url'] ?? '/';
-$message   = null; $error = null; $masked = null;
+$message   = null; $error = null; $masked = null; $sentOk = false; $expiresSeconds = 600;
 
 // Resolve app context and MFA settings
 $appModel = new AppModel($pdo);
@@ -63,6 +63,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
       if(!$dest){ $error = 'No destination available for selected method.'; }
       else {
         $ok = mfa_start($pdo, $CONFIG, $ptype, $pid, $appId, $method, $dest, $masked);
+        $sentOk = $ok;
         $message = $ok ? ('Verification code sent to '.$masked) : 'Failed to send verification code.';
       }
     }
@@ -119,7 +120,12 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         <h1 class="h5 mb-3">Verify your identity</h1>
         <p class="text-muted small">Choose how to receive your verification code and enter it below to continue.</p>
 
-        <?php if($message): ?><div class="alert alert-info" role="status"><?=htmlspecialchars($message)?></div><?php endif; ?>
+        <?php if($message): ?><div class="alert alert-info d-flex justify-content-between align-items-center" role="status">
+          <div><?=htmlspecialchars($message)?></div>
+          <?php if($sentOk): ?>
+            <div class="small text-nowrap"><span class="text-muted">Expires in</span> <strong id="mfa-countdown">10:00</strong></div>
+          <?php endif; ?>
+        </div><?php endif; ?>
         <?php if($error): ?><div class="alert alert-danger" role="alert"><?=htmlspecialchars($error)?></div><?php endif; ?>
 
         <form method="post" class="mb-3">
@@ -155,6 +161,16 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     </div>
   </div>
 </div>
+<script>
+(function(){
+  var sentOk = <?=(int)$sentOk?>;
+  if(!sentOk) return;
+  var total = <?=$expiresSeconds?>; // seconds
+  var el = document.getElementById('mfa-countdown');
+  function fmt(s){ var m=Math.floor(s/60), ss=s%60; return String(m).padStart(1,'0')+':'+String(ss).padStart(2,'0'); }
+  function tick(){ if(total<=0){ el.textContent='00:00'; return; } el.textContent=fmt(total); total--; setTimeout(tick,1000); }
+  tick();
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body></html>
-

@@ -17,5 +17,7 @@ return [
   'CLICKSEND_USERNAME'=>envv('CLICKSEND_USERNAME',''),
   'CLICKSEND_API_KEY' =>envv('CLICKSEND_API_KEY',''),
   // Optional: set to a specific approved number/sender ID; leave blank or set 'shared' to use ClickSend shared numbers
-  'CLICKSEND_FROM'    =>envv('CLICKSEND_FROM','')
+  'CLICKSEND_FROM'    =>envv('CLICKSEND_FROM',''),
+  // Force using shared numbers even if a from/sender is configured (1/true to enable)
+  'CLICKSEND_FORCE_SHARED' =>envv('CLICKSEND_FORCE_SHARED','0')
 ];
