@@ -85,6 +85,16 @@ if($_SERVER['REQUEST_METHOD']!=='POST' && $appId && isset($_SESSION['ptype'], $_
       header('Location: /access_denied.php?app_id='.urlencode($appId).'&return_url='.urlencode($returnUrl ?: $app['return_url']));
       exit;
     }
+    // Enforce MFA for this app if required and not recently satisfied
+    if((int)($app['require_mfa'] ?? 0)===1){
+      $okMfa=false; $now=time();
+      if(isset($_SESSION['mfa_ok'][$appId]) && $_SESSION['mfa_ok'][$appId] > $now){ $okMfa=true; }
+      if(!$okMfa){
+        $ru = $returnUrl ?: $app['return_url'];
+        header('Location: /mfa.php?app_id='.urlencode($appId).'&return_url='.urlencode($ru));
+        exit;
+      }
+    }
     // Log access authorized
     log_event($pdo, $_SESSION['ptype'], (int)$_SESSION['pid'], 'access.authorized', ['app_id'=>$appId, 'app_db_id'=>$aid, 'via'=>'auto_login']);
     $ptype=$_SESSION['ptype']; $pid=(int)$_SESSION['pid'];
@@ -228,6 +238,15 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         log_event($pdo, $principal['type'], (int)$principal['id'], 'access.denied', ['app_id'=>$appId, 'app_db_id'=>$aid, 'via'=>'login']);
         header('Location: /access_denied.php?app_id='.urlencode($appId).'&return_url='.urlencode($returnUrl ?: $app['return_url']));
         exit;
+      }
+      // If this app requires MFA and it's not satisfied yet, redirect to MFA before continuing
+      if((int)($app['require_mfa'] ?? 0)===1){
+        $now=time();
+        if(!(isset($_SESSION['mfa_ok'][$appId]) && $_SESSION['mfa_ok'][$appId] > $now)){
+          $ru = $returnUrl ?: ($app['return_url'] ?? '/');
+          header('Location: /mfa.php?app_id='.urlencode($appId).'&return_url='.urlencode($ru));
+          exit;
+        }
       }
       // Log access authorized
       log_event($pdo, $principal['type'], (int)$principal['id'], 'access.authorized', ['app_id'=>$appId, 'app_db_id'=>$aid, 'via'=>'login']);
