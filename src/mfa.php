@@ -18,7 +18,7 @@ function mfa_send_sms_clicksend(array $cfg, string $phoneE164, string $message):
   $fromCfg = trim((string)($cfg['CLICKSEND_FROM'] ?? getenv('CLICKSEND_FROM') ?? ''));
   $useFrom = ($fromCfg!=='' && strtolower($fromCfg)!=='shared') ? $fromCfg : null; // null => use shared numbers
   $msgObj = [ 'to'=>$phoneE164, 'source'=>'php', 'body'=>$message ];
-  if($useFrom){ $msgObj['from'] = $useFrom; }
+  #if($useFrom){ $msgObj['from'] = $useFrom; }
   $payload = json_encode(['messages'=>[ $msgObj ]], JSON_UNESCAPED_SLASHES);
   if(function_exists('curl_init')){
     $ch = curl_init('https://rest.clicksend.com/v3/sms/send');
