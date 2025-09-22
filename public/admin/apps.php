@@ -19,11 +19,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $icon = trim($_POST['icon'] ?? '');
     $is_active = isset($_POST['is_active']) ? 1 : 0;
     $auto_login = isset($_POST['auto_login']) ? 1 : 0;
+    $require_mfa = isset($_POST['require_mfa']) ? 1 : 0;
+    $mfa_methods = trim($_POST['mfa_methods'] ?? 'email,sms');
     $secret_plain = trim($_POST['secret'] ?? '');
     if($id){
       if($app_id==='') throw new Exception('App ID cannot be empty.');
-      $sql = 'UPDATE apps SET app_id=?, name=?, return_url=?, icon=?, is_active=?, auto_login=?';
-      $params = [$app_id,$name,$return_url,($icon!==''?$icon:null),$is_active,$auto_login];
+      $sql = 'UPDATE apps SET app_id=?, name=?, return_url=?, icon=?, is_active=?, auto_login=?, require_mfa=?, mfa_methods=?';
+      $params = [$app_id,$name,$return_url,($icon!==''?$icon:null),$is_active,$auto_login,$require_mfa,$mfa_methods];
       if($secret_plain!==''){ $sql .= ', secret_plain=?, secret_hash=?'; $params[] = $secret_plain; $params[] = hash('sha256',$secret_plain); }
       $sql .= ' WHERE id=?';
       $params[] = $id;
@@ -32,18 +34,18 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       $msg='App updated.';
       // Log update
       $actorId = (int)($_SESSION['pid'] ?? 0);
-      $detail = [ 'op'=>'update','app_db_id'=>$id,'app_id'=>$app_id,'name'=>$name,'return_url'=>$return_url,'icon'=>$icon?:null,'is_active'=>(int)$is_active,'auto_login'=>(int)$auto_login,'secret_updated'=>($secret_plain!=='') ];
+      $detail = [ 'op'=>'update','app_db_id'=>$id,'app_id'=>$app_id,'name'=>$name,'return_url'=>$return_url,'icon'=>$icon?:null,'is_active'=>(int)$is_active,'auto_login'=>(int)$auto_login,'require_mfa'=>(int)$require_mfa,'mfa_methods'=>$mfa_methods,'secret_updated'=>($secret_plain!=='') ];
       log_event($pdo,'user',$actorId,'admin.app.save',$detail);
     } else {
       if($app_id===''||$name===''||$return_url==='') throw new Exception('App ID, Name, and Return URL are required.');
       if($secret_plain==='') throw new Exception('Secret is required for new applications.');
       $secret_hash = hash('sha256',$secret_plain);
-      $st=$pdo->prepare('INSERT INTO apps (app_id,name,return_url,icon,secret_hash,secret_plain,is_active,auto_login) VALUES (?,?,?,?,?,?,?,?)');
-      $st->execute([$app_id,$name,$return_url,($icon!==''?$icon:null),$secret_hash,$secret_plain,$is_active,$auto_login]);
+      $st=$pdo->prepare('INSERT INTO apps (app_id,name,return_url,icon,secret_hash,secret_plain,is_active,auto_login,require_mfa,mfa_methods) VALUES (?,?,?,?,?,?,?,?,?,?)');
+      $st->execute([$app_id,$name,$return_url,($icon!==''?$icon:null),$secret_hash,$secret_plain,$is_active,$auto_login,$require_mfa,$mfa_methods]);
       $msg='App created.';
       // Log create
       $actorId = (int)($_SESSION['pid'] ?? 0);
-      $detail = [ 'op'=>'create','app_id'=>$app_id,'name'=>$name,'return_url'=>$return_url,'icon'=>$icon?:null,'is_active'=>(int)$is_active,'auto_login'=>(int)$auto_login ];
+      $detail = [ 'op'=>'create','app_id'=>$app_id,'name'=>$name,'return_url'=>$return_url,'icon'=>$icon?:null,'is_active'=>(int)$is_active,'auto_login'=>(int)$auto_login,'require_mfa'=>(int)$require_mfa,'mfa_methods'=>$mfa_methods ];
       log_event($pdo,'user',$actorId,'admin.app.save',$detail);
     }
   }catch(Throwable $e){ $err=$e->getMessage(); }
