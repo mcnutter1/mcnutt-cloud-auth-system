@@ -21,13 +21,16 @@ $message   = null; $error = null; $masked = null; $sentOk = false; $expiresSecon
 $appModel = new AppModel($pdo);
 $app = $appId ? $appModel->findByAppId($appId) : null;
 $requireMfa = (int)($app['require_mfa'] ?? 0) === 1;
-$methodsCsv = (string)($app['mfa_methods'] ?? 'email,sms');
+// Normalize MFA methods (case/whitespace/commas) to robustly enable options
+$methodsStr = strtolower(preg_replace('/\s+/', '', (string)($app['mfa_methods'] ?? 'email,sms')));
+$methodsArr = array_filter($methodsStr === '' ? [] : explode(',', $methodsStr));
 if(!$appId || !$app){ $error = 'Application not found.'; }
 if(!$requireMfa){ /* allow direct access but guide back */ }
 
-// Build allowed method options
-$allowEmail = str_contains($methodsCsv, 'email');
-$allowSms   = str_contains($methodsCsv, 'sms');
+// Build allowed method options (fallback to both if misconfigured)
+$allowEmail = in_array('email', $methodsArr, true);
+$allowSms   = in_array('sms',   $methodsArr, true);
+if(!$allowEmail && !$allowSms){ $allowEmail = $allowSms = true; }
 
 // Handle submissions
 if($_SERVER['REQUEST_METHOD'] === 'POST'){
