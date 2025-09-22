@@ -68,7 +68,7 @@ require_once __DIR__.'/_partials/header.php';
       <div class="card shadow-sm"><div class="card-body">
         <div class="table-responsive">
           <table class="table align-middle mb-0">
-            <thead><tr><th>ID</th><th>App ID</th><th>Name</th><th>Return URL</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>ID</th><th>App ID</th><th>Name</th><th>Return URL</th><th>MFA</th><th>Status</th><th></th></tr></thead>
             <tbody>
             <?php foreach($apps as $a): $envkey='APP_SECRET_'.strtoupper(str_replace(['-',' '],'_',$a['app_id'])); $hasEnv = getenv($envkey)?'yes':'no'; ?>
               <tr>
@@ -76,6 +76,14 @@ require_once __DIR__.'/_partials/header.php';
                 <td class="font-monospace small"><?=htmlspecialchars($a['app_id'])?></td>
                 <td><?=htmlspecialchars($a['icon'] ?? '')?> <?=htmlspecialchars($a['name'])?></td>
                 <td class="small text-truncate" style="max-width:280px;" title="<?=htmlspecialchars($a['return_url'])?>"><?=htmlspecialchars($a['return_url'])?></td>
+                <td class="small">
+                  <?php if((int)($a['require_mfa'] ?? 0)===1): ?>
+                    <span class="badge text-bg-primary">Required</span>
+                    <div class="text-muted small mt-1"><?=htmlspecialchars($a['mfa_methods'] ?? 'email,sms')?></div>
+                  <?php else: ?>
+                    <span class="badge text-bg-light text-muted">Not required</span>
+                  <?php endif; ?>
+                </td>
                 <td><?php if($a['is_active']): ?><span class="badge text-bg-success">Active</span><?php else: ?><span class="badge text-bg-secondary">Disabled</span><?php endif; ?></td>
                 <td class="text-end">
                   <button class="btn btn-sm btn-outline-primary" type="button" onclick='prefill(<?=json_encode($a)?>)'>Edit</button>
