@@ -11,11 +11,15 @@ function mfa_send_email(string $toEmail, string $code): bool {
   return @mail($toEmail, $subject, $body) === true;
 }
 
-function mfa_send_sms_clicksend(array $cfg, string $phoneE164, string $message): bool {
+function mfa_send_sms_clicksend(array $cfg, string $phoneE164, string $message): array {
   $username = $cfg['CLICKSEND_USERNAME'] ?? getenv('CLICKSEND_USERNAME') ?? '';
   $apiKey   = $cfg['CLICKSEND_API_KEY']   ?? getenv('CLICKSEND_API_KEY')   ?? '';
-  if($username==='' || $apiKey==='') return false;
-  $payload = json_encode(['messages'=>[[ 'to'=>$phoneE164, 'source'=>'php', 'body'=>$message ]]], JSON_UNESCAPED_SLASHES);
+  if($username==='' || $apiKey==='') return ['ok'=>false,'http_code'=>null,'body'=>null,'error'=>'missing_credentials'];
+  $fromCfg = trim((string)($cfg['CLICKSEND_FROM'] ?? getenv('CLICKSEND_FROM') ?? ''));
+  $useFrom = ($fromCfg!=='' && strtolower($fromCfg)!=='shared') ? $fromCfg : null; // null => use shared numbers
+  $msgObj = [ 'to'=>$phoneE164, 'source'=>'php', 'body'=>$message ];
+  if($useFrom){ $msgObj['from'] = $useFrom; }
+  $payload = json_encode(['messages'=>[ $msgObj ]], JSON_UNESCAPED_SLASHES);
   if(function_exists('curl_init')){
     $ch = curl_init('https://rest.clicksend.com/v3/sms/send');
     curl_setopt_array($ch, [
@@ -26,12 +30,12 @@ function mfa_send_sms_clicksend(array $cfg, string $phoneE164, string $message):
       ],
       CURLOPT_POSTFIELDS=>$payload,
       CURLOPT_RETURNTRANSFER=>true,
-      CURLOPT_TIMEOUT=>10
+      CURLOPT_TIMEOUT=>15
     ]);
     $resp = curl_exec($ch);
-    if($resp===false){ curl_close($ch); return false; }
+    if($resp===false){ $err = curl_error($ch); curl_close($ch); return ['ok'=>false,'http_code'=>null,'body'=>null,'error'=>$err ?: 'curl_error']; }
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
-    return $code>=200 && $code<300;
+    return ['ok'=>($code>=200 && $code<300), 'http_code'=>$code, 'body'=>$resp, 'error'=>null, 'from_used'=>($useFrom ?: 'shared')];
   }
   // Fallback: attempt file_get_contents with stream context
   $opts = [
@@ -39,12 +43,12 @@ function mfa_send_sms_clicksend(array $cfg, string $phoneE164, string $message):
       'method' => 'POST',
       'header' => "Content-Type: application/json\r\nAuthorization: Basic ".base64_encode($username.':'.$apiKey)."\r\n",
       'content'=> $payload,
-      'timeout'=> 10
+      'timeout'=> 15
     ]
   ];
   $ctx = stream_context_create($opts);
   $resp = @file_get_contents('https://rest.clicksend.com/v3/sms/send', false, $ctx);
-  return $resp !== false;
+  return ['ok'=>($resp!==false), 'http_code'=>null, 'body'=>($resp===false?null:$resp), 'error'=>($resp===false?'http_error':null), 'from_used'=>($useFrom ?: 'shared')];
 }
 
 function mfa_start(PDO $pdo, array $cfg, string $userType, int $userId, ?string $appId, string $method, string $destination, ?string &$outMasked): bool {
@@ -61,10 +65,12 @@ function mfa_start(PDO $pdo, array $cfg, string $userType, int $userId, ?string 
   }
   $outMasked = $masked;
   $msg = "Your verification code is $code";
-  $sent=false;
-  if($method==='email') $sent = mfa_send_email($destination, $code);
-  if($method==='sms')   $sent = mfa_send_sms_clicksend($cfg, $destination, $msg);
-  log_event($pdo, $userType, $userId, 'mfa.send', ['method'=>$method,'app_id'=>$appId,'destination_masked'=>$masked,'sent'=>$sent]);
+  $sent=false; $meta=[];
+  if($method==='email') { $sent = mfa_send_email($destination, $code); $meta=['channel'=>'email']; }
+  if($method==='sms')   { $res = mfa_send_sms_clicksend($cfg, $destination, $msg); $sent = (bool)$res['ok']; $meta=['channel'=>'sms','http_code'=>$res['http_code'],'body'=>$res['body'],'error'=>$res['error'],'from_used'=>$res['from_used']??null]; }
+  // Log verbosely with unmasked destination as requested
+  $detail = array_merge(['method'=>$method,'app_id'=>$appId,'destination'=>$destination,'sent'=>$sent], $meta);
+  log_event($pdo, $userType, $userId, 'mfa.send', $detail);
   return $sent;
 }
 
@@ -78,4 +84,3 @@ function mfa_verify(PDO $pdo, string $userType, int $userId, ?string $appId, str
   log_event($pdo, $userType, $userId, $ok?'mfa.verify.success':'mfa.verify.failure', ['app_id'=>$appId]);
   return $ok;
 }
-

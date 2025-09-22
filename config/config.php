@@ -15,5 +15,7 @@ return [
   'CSRF_SECRET'=>envv('CSRF_SECRET','changeme'),
   // SMS provider (ClickSend)
   'CLICKSEND_USERNAME'=>envv('CLICKSEND_USERNAME',''),
-  'CLICKSEND_API_KEY' =>envv('CLICKSEND_API_KEY','')
+  'CLICKSEND_API_KEY' =>envv('CLICKSEND_API_KEY',''),
+  // Optional: set to a specific approved number/sender ID; leave blank or set 'shared' to use ClickSend shared numbers
+  'CLICKSEND_FROM'    =>envv('CLICKSEND_FROM','')
 ];
