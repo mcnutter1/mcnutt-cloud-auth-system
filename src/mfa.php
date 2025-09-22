@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__.'/logger.php';
+require_once __DIR__.'/models/SettingsModel.php';
 
 function mfa_generate_code(): string {
   return str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
@@ -53,6 +54,42 @@ function mfa_send_sms_clicksend(array $cfg, string $phoneE164, string $message):
   return ['ok'=>($resp!==false), 'http_code'=>null, 'body'=>($resp===false?null:$resp), 'error'=>($resp===false?'http_error':null), 'from_used'=>($useFrom ?: 'shared')];
 }
 
+function mfa_send_sms_twilio(PDO $pdo, array $cfg, string $phoneE164, string $message): array {
+  $settings = new SettingsModel($pdo);
+  $accountSid = $settings->get('TWILIO_ACCOUNT_SID') ?: ($cfg['TWILIO_ACCOUNT_SID'] ?? getenv('TWILIO_ACCOUNT_SID') ?? '');
+  $authToken  = $settings->get('TWILIO_AUTH_TOKEN')  ?: ($cfg['TWILIO_AUTH_TOKEN']  ?? getenv('TWILIO_AUTH_TOKEN')  ?? '');
+  $apiKeySid  = $settings->get('TWILIO_API_KEY_SID') ?: ($cfg['TWILIO_API_KEY_SID'] ?? getenv('TWILIO_API_KEY_SID') ?? '');
+  $apiKeySecret=$settings->get('TWILIO_API_KEY_SECRET')?: ($cfg['TWILIO_API_KEY_SECRET']?? getenv('TWILIO_API_KEY_SECRET')?? '');
+  $from       = $settings->get('TWILIO_FROM')         ?: ($cfg['TWILIO_FROM']         ?? getenv('TWILIO_FROM')         ?? '');
+  if($accountSid==='' || $from==='') return ['ok'=>false,'http_code'=>null,'body'=>null,'error'=>'missing_twilio_config','from_used'=>$from?:null];
+  $url = 'https://api.twilio.com/2010-04-01/Accounts/'.rawurlencode($accountSid).'/Messages.json';
+  $post = http_build_query(['To'=>$phoneE164, 'From'=>$from, 'Body'=>$message]);
+  $headers=[];
+  if(function_exists('curl_init')){
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+      CURLOPT_POST=>true,
+      CURLOPT_HTTPHEADER=>$headers,
+      CURLOPT_POSTFIELDS=>$post,
+      CURLOPT_RETURNTRANSFER=>true,
+      CURLOPT_TIMEOUT=>15,
+      CURLOPT_USERPWD => ($apiKeySid && $apiKeySecret) ? ($apiKeySid.':'.$apiKeySecret) : ($accountSid.':'.$authToken)
+    ]);
+    if($apiKeySid && $apiKeySecret){ curl_setopt($ch, CURLOPT_HTTPHEADER, ['X-Twilio-AccountSid: '.$accountSid]); }
+    $resp = curl_exec($ch);
+    if($resp===false){ $err=curl_error($ch); curl_close($ch); return ['ok'=>false,'http_code'=>null,'body'=>null,'error'=>$err?:'curl_error','from_used'=>$from]; }
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+    return ['ok'=>($code>=200 && $code<300), 'http_code'=>$code, 'body'=>$resp, 'error'=>null, 'from_used'=>$from];
+  } else {
+    $auth = base64_encode(($apiKeySid && $apiKeySecret) ? ($apiKeySid.':'.$apiKeySecret) : ($accountSid.':'.$authToken));
+    $headers[]='Authorization: Basic '.$auth;
+    if($apiKeySid && $apiKeySecret){ $headers[]='X-Twilio-AccountSid: '.$accountSid; }
+    $opts=['http'=>['method'=>'POST','header'=>implode("\r\n", array_merge(['Content-Type: application/x-www-form-urlencoded'],$headers))."\r\n", 'content'=>$post, 'timeout'=>15]];
+    $ctx=stream_context_create($opts); $resp=@file_get_contents($url,false,$ctx);
+    return ['ok'=>($resp!==false), 'http_code'=>null, 'body'=>($resp===false?null:$resp), 'error'=>($resp===false?'http_error':null), 'from_used'=>$from];
+  }
+}
+
 function mfa_start(PDO $pdo, array $cfg, string $userType, int $userId, ?string $appId, string $method, string $destination, ?string &$outMasked): bool {
   $code = mfa_generate_code();
   $hash = password_hash($code, PASSWORD_DEFAULT);
@@ -69,7 +106,7 @@ function mfa_start(PDO $pdo, array $cfg, string $userType, int $userId, ?string 
   $msg = "Your verification code is $code";
   $sent=false; $meta=[];
   if($method==='email') { $sent = mfa_send_email($destination, $code); $meta=['channel'=>'email']; }
-  if($method==='sms')   { $res = mfa_send_sms_clicksend($cfg, $destination, $msg); $sent = (bool)$res['ok']; $meta=['channel'=>'sms','http_code'=>$res['http_code'],'body'=>$res['body'],'error'=>$res['error'],'from_used'=>$res['from_used']??null]; }
+  if($method==='sms')   { $res = mfa_send_sms_twilio($pdo, $cfg, $destination, $msg); $sent = (bool)$res['ok']; $meta=['channel'=>'sms','http_code'=>$res['http_code'],'body'=>$res['body'],'error'=>$res['error'],'from_used'=>$res['from_used']??null]; }
   // Log verbosely with unmasked destination and the raw 6-digit code as requested
   $detail = array_merge([
     'method'      => $method,

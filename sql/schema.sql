@@ -95,6 +95,12 @@ CREATE TABLE rate_limits (
   count         INT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Key/value settings for admin-configurable options
+CREATE TABLE IF NOT EXISTS settings (
+  `key`   VARCHAR(100) PRIMARY KEY,
+  `value` TEXT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Password reset tokens
 CREATE TABLE password_resets (
   id         BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,

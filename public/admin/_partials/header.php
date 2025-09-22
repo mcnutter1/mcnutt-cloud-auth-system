@@ -6,8 +6,11 @@
 <link href="/assets/css/app.css" rel="stylesheet">
 </head><body>
 <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom">
-  <div class="container">
+  <div class="container d-flex align-items-center">
     <a class="navbar-brand" href="/admin/">Admin</a>
-    <div class="ms-auto"><a class="btn btn-outline-danger btn-sm" href="/logout.php">Logout</a></div>
+    <div class="ms-auto d-flex gap-2">
+      <a class="btn btn-outline-secondary btn-sm" href="/admin/settings.php">Settings</a>
+      <a class="btn btn-outline-danger btn-sm" href="/logout.php">Logout</a>
+    </div>
   </div>
 </nav>
