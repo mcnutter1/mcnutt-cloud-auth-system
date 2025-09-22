@@ -160,7 +160,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
           <input type="hidden" name="action" value="verify"/>
           <div class="mb-2">
             <label class="form-label small text-muted" for="f-code">Verification code</label>
-            <input type="text" class="form-control text-center" id="f-code" name="code" placeholder="123456" inputmode="numeric" autocomplete="one-time-code" required style="font-size:28px; letter-spacing:4px; padding:14px 10px;">
+            <input type="text" class="form-control text-center" id="f-code" name="code" placeholder="— — — — — —" inputmode="numeric" autocomplete="one-time-code" required style="font-size:28px; letter-spacing:4px; padding:14px 10px;">
           </div>
           <div class="d-flex justify-content-between align-items-center mb-2">
             <button class="btn btn-primary">Verify and continue</button>

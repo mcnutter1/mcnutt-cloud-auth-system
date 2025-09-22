@@ -195,6 +195,15 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   }
 
   if($ok){
+    // If app requires MFA, redirect to MFA page before issuing payload
+    if($appId){
+      $app = $appModel->findByAppId($appId);
+      if($app && (int)($app['require_mfa'] ?? 0)===1){
+        $ru = $returnUrl ?: ($app['return_url'] ?? '/');
+        header('Location: /mfa.php?app_id='.urlencode($appId).'&return_url='.urlencode($ru));
+        exit;
+      }
+    }
     $sess = $auth->issueSession($principal['type'], $principal['id'], null, (int)$CONFIG['SESSION_TTL_MIN']);
     $identity = ($principal['type']==='user') ? $userModel->publicProfile($principal['id']) : $keyModel->publicProfile($principal['id']);
     $roles = ($principal['type']==='user') ? $userModel->roles($principal['id']) : $keyModel->roles($principal['id']);
@@ -352,7 +361,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       </div>
       <div id="group-magic" class="d-none">
         <div class="form-floating mb-3">
-          <input type="text" class="form-control" id="f-mkey" name="magic_key" placeholder="ABCDE-FGHIJ-KLMNO-PQRST-UVWX">
+          <input type="text" class="form-control font-monospace" id="f-mkey" name="magic_key" placeholder="ABCDE-FGHIJ-KLMNO-PQRST-UVWX" inputmode="text" style="font-size:18px; letter-spacing:1px; text-transform:uppercase;">
           <label for="f-mkey">Magic Key</label>
         </div>
       </div>
