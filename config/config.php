@@ -12,5 +12,8 @@ return [
   'DB_USER'=>envv('DB_USER','root'),
   'DB_PASS'=>envv('DB_PASS',''),
   'DB_SOCKET'=>envv('DB_SOCKET', null),
-  'CSRF_SECRET'=>envv('CSRF_SECRET','changeme')
+  'CSRF_SECRET'=>envv('CSRF_SECRET','changeme'),
+  // SMS provider (ClickSend)
+  'CLICKSEND_USERNAME'=>envv('CLICKSEND_USERNAME',''),
+  'CLICKSEND_API_KEY' =>envv('CLICKSEND_API_KEY','')
 ];

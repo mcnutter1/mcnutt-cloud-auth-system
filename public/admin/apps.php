@@ -127,7 +127,15 @@ require_once __DIR__.'/_partials/header.php';
             <div class="form-text" id="secret-help">Required when creating. Leave blank to keep existing secret. You can override via env var <code>APP_SECRET_{APP_ID_UPPER}</code>.</div>
           </div>
           <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="is_active" id="f-active" checked><label class="form-check-label" for="f-active">Active</label></div>
-          <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="auto_login" id="f-autologin" checked><label class="form-check-label" for="f-autologin">Auto-login if already authenticated</label></div>
+          <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="auto_login" id="f-autologin" checked><label class="form-check-label" for="f-autologin">Auto-login if already authenticated</label></div>
+          <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="require_mfa" id="f-require-mfa"><label class="form-check-label" for="f-require-mfa">Require multi-factor authentication</label></div>
+          <div class="mb-3"><label class="form-label">MFA Methods</label>
+            <select class="form-select" name="mfa_methods" id="f-mfa-methods">
+              <option value="email,sms" selected>Email or SMS</option>
+              <option value="email">Email only</option>
+              <option value="sms">SMS only</option>
+            </select>
+          </div>
           <div class="d-flex gap-2">
             <button class="btn btn-primary">Save</button>
             <button class="btn btn-secondary" type="button" onclick="resetForm()">Reset</button>
@@ -148,6 +156,8 @@ function prefill(a){
   document.getElementById('f-icon').value=a.icon||'';
   document.getElementById('f-active').checked = !!parseInt(a.is_active);
   document.getElementById('f-autologin').checked = !!parseInt(a.auto_login ?? 1);
+  document.getElementById('f-require-mfa').checked = !!parseInt(a.require_mfa ?? 0);
+  if(a.mfa_methods){ document.getElementById('f-mfa-methods').value = a.mfa_methods; }
   document.getElementById('f-secret').value='';
   document.getElementById('f-secret').required = false;
   document.getElementById('secret-help').innerHTML = 'Optional when editing. Leave blank to keep existing secret. You can override via env var <code>APP_SECRET_{APP_ID_UPPER}</code>.';
@@ -159,6 +169,8 @@ function resetForm(){
   document.getElementById('f-autologin').checked = true;
   document.getElementById('f-secret').required = true;
   document.getElementById('secret-help').innerHTML = 'Required when creating. You can override via env var <code>APP_SECRET_{APP_ID_UPPER}</code>.';
+  document.getElementById('f-require-mfa').checked = false;
+  document.getElementById('f-mfa-methods').value = 'email,sms';
 }
 function genSecret(){
   // Generate 64 hex chars (256-bit)
