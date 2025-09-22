@@ -19,6 +19,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $settings->set('TWILIO_API_KEY_SID', trim($_POST['TWILIO_API_KEY_SID'] ?? ''));
     $settings->set('TWILIO_API_KEY_SECRET', trim($_POST['TWILIO_API_KEY_SECRET'] ?? ''));
     $settings->set('TWILIO_FROM', trim($_POST['TWILIO_FROM'] ?? ''));
+    // SendGrid
+    $settings->set('SENDGRID_API_KEY', trim($_POST['SENDGRID_API_KEY'] ?? ''));
+    $settings->set('SENDGRID_FROM_EMAIL', trim($_POST['SENDGRID_FROM_EMAIL'] ?? ''));
+    $settings->set('SENDGRID_FROM_NAME', trim($_POST['SENDGRID_FROM_NAME'] ?? ''));
     $msg='Settings saved.';
   }catch(Throwable $e){ $err=$e->getMessage(); }
 }
@@ -54,6 +58,19 @@ require_once __DIR__.'/_partials/header.php';
     <div class="form-text mt-2">Use Auth Token OR API Key SID/Secret. Provide Account SID, and either a valid Twilio phone number or Messaging Service SID in From.</div>
   </div></div>
 
+  <div class="card shadow-sm mb-4"><div class="card-body">
+    <h2 class="h6 mb-3">MFA · Email Provider (SendGrid)</h2>
+    <form method="post">
+      <?php csrf_field(); ?>
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label">SendGrid API Key</label><input class="form-control" name="SENDGRID_API_KEY" value="<?=htmlspecialchars($vals['SENDGRID_API_KEY'] ?? '')?>" placeholder="SG.xxxxxx"></div>
+        <div class="col-md-6"><label class="form-label">From Email</label><input class="form-control" name="SENDGRID_FROM_EMAIL" value="<?=htmlspecialchars($vals['SENDGRID_FROM_EMAIL'] ?? '')?>" placeholder="no-reply@example.com"></div>
+        <div class="col-md-6"><label class="form-label">From Name</label><input class="form-control" name="SENDGRID_FROM_NAME" value="<?=htmlspecialchars($vals['SENDGRID_FROM_NAME'] ?? '')?>" placeholder="Secure Login"></div>
+      </div>
+      <div class="mt-3"><button class="btn btn-primary">Save Settings</button></div>
+    </form>
+    <div class="form-text mt-2">Emails are sent via SendGrid with a branded HTML template and a 6‑digit verification code.</div>
+  </div></div>
+
 </div>
 <?php require __DIR__.'/_partials/footer.php'; ?>
-
