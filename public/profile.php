@@ -177,10 +177,56 @@ if($ptype==='user' && !empty($identity['username'])){
     </div>
     <?php if($ptype==='user'): ?>
     <div class="col-md-5">
-      <div class="card auth-card"><div class="card-body">
+      <div class="card auth-card mb-3"><div class="card-body">
         <h2 class="h6 mb-3">Change Password</h2>
         <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#pwChangeModal">Change Password</button>
       </div></div>
+      <?php if($ptype==='user'): ?>
+        <?php if($allowApi): ?>
+        <div class="card auth-card"><div class="card-body">
+          <h2 class="h6 mb-2">API Keys</h2>
+          <p class="small text-muted">Use personal API keys to authenticate to supported application APIs. Keep keys secret; they grant access as you.</p>
+          <?php if($newApiKey): ?>
+            <div class="alert alert-warning small"><div class="fw-semibold mb-1">Your new API key</div><code style="user-select:all; display:block; word-break:break-all;"><?=htmlspecialchars($newApiKey)?></code><div class="mt-1">Copy it now — it will not be shown again.</div></div>
+          <?php endif; ?>
+          <form method="post" class="mb-3 d-flex gap-2 align-items-end">
+            <?php csrf_field(); ?>
+            <input type="hidden" name="action" value="api_key_create" />
+            <div class="flex-grow-1"><label class="form-label">Label (optional)</label><input class="form-control" type="text" name="label" maxlength="100" placeholder="e.g., My CLI"/></div>
+            <button class="btn btn-outline-primary">Generate</button>
+          </form>
+          <div class="list-group list-group-flush">
+            <?php if($apiKeys): ?>
+              <?php foreach($apiKeys as $k): ?>
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="fw-semibold small"><?=htmlspecialchars($k['label'] ?: 'Untitled')?> <span class="text-muted">(mcak_<?=htmlspecialchars($k['key_prefix'])?>…<?=htmlspecialchars($k['key_last4'])?>)</span></div>
+                    <div class="small text-muted">Created <?=htmlspecialchars($k['created_at'])?><?php if($k['last_used_at']): ?> · Last used <?=htmlspecialchars($k['last_used_at'])?><?php endif; ?></div>
+                  </div>
+                  <?php if((int)$k['is_active']===1): ?>
+                    <form method="post" onsubmit="return confirm('Revoke this API key?');">
+                      <?php csrf_field(); ?>
+                      <input type="hidden" name="action" value="api_key_revoke" />
+                      <input type="hidden" name="key_id" value="<?= (int)$k['id'] ?>" />
+                      <button class="btn btn-sm btn-outline-danger">Revoke</button>
+                    </form>
+                  <?php else: ?>
+                    <span class="badge text-bg-secondary">Revoked</span>
+                  <?php endif; ?>
+                </div>
+              <?php endforeach; ?>
+            <?php else: ?>
+              <div class="list-group-item small text-muted">No API keys yet.</div>
+            <?php endif; ?>
+          </div>
+        </div></div>
+        <?php else: ?>
+        <div class="card auth-card"><div class="card-body">
+          <h2 class="h6 mb-2">API Keys</h2>
+          <div class="small text-muted">API keys are not enabled for your account. Contact an administrator if you need programmatic access.</div>
+        </div></div>
+        <?php endif; ?>
+      <?php endif; ?>
     </div>
     <?php endif; ?>
   </div>
@@ -219,52 +265,6 @@ if($ptype==='user' && !empty($identity['username'])){
       </div></div>
     </div>
     <div class="col-md-5">
-      <?php if($ptype==='user'): ?>
-      <?php if($allowApi): ?>
-      <div class="card auth-card"><div class="card-body">
-        <h2 class="h6 mb-2">API Keys</h2>
-        <p class="small text-muted">Use personal API keys to authenticate to supported application APIs. Keep keys secret; they grant access as you.</p>
-        <?php if($newApiKey): ?>
-          <div class="alert alert-warning small"><div class="fw-semibold mb-1">Your new API key</div><code style="user-select:all; display:block; word-break:break-all;"><?=htmlspecialchars($newApiKey)?></code><div class="mt-1">Copy it now — it will not be shown again.</div></div>
-        <?php endif; ?>
-        <form method="post" class="mb-3 d-flex gap-2 align-items-end">
-          <?php csrf_field(); ?>
-          <input type="hidden" name="action" value="api_key_create" />
-          <div class="flex-grow-1"><label class="form-label">Label (optional)</label><input class="form-control" type="text" name="label" maxlength="100" placeholder="e.g., My CLI"/></div>
-          <button class="btn btn-outline-primary">Generate</button>
-        </form>
-        <div class="list-group list-group-flush">
-          <?php if($apiKeys): ?>
-            <?php foreach($apiKeys as $k): ?>
-              <div class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                  <div class="fw-semibold small"><?=htmlspecialchars($k['label'] ?: 'Untitled')?> <span class="text-muted">(mcak_<?=htmlspecialchars($k['key_prefix'])?>…<?=htmlspecialchars($k['key_last4'])?>)</span></div>
-                  <div class="small text-muted">Created <?=htmlspecialchars($k['created_at'])?><?php if($k['last_used_at']): ?> · Last used <?=htmlspecialchars($k['last_used_at'])?><?php endif; ?></div>
-                </div>
-                <?php if((int)$k['is_active']===1): ?>
-                  <form method="post" onsubmit="return confirm('Revoke this API key?');">
-                    <?php csrf_field(); ?>
-                    <input type="hidden" name="action" value="api_key_revoke" />
-                    <input type="hidden" name="key_id" value="<?= (int)$k['id'] ?>" />
-                    <button class="btn btn-sm btn-outline-danger">Revoke</button>
-                  </form>
-                <?php else: ?>
-                  <span class="badge text-bg-secondary">Revoked</span>
-                <?php endif; ?>
-              </div>
-            <?php endforeach; ?>
-          <?php else: ?>
-            <div class="list-group-item small text-muted">No API keys yet.</div>
-          <?php endif; ?>
-        </div>
-      </div></div>
-      <?php else: ?>
-      <div class="card auth-card"><div class="card-body">
-        <h2 class="h6 mb-2">API Keys</h2>
-        <div class="small text-muted">API keys are not enabled for your account. Contact an administrator if you need programmatic access.</div>
-      </div></div>
-      <?php endif; ?>
-      <?php endif; ?>
       <div class="card auth-card"><div class="card-body">
         <h2 class="h6 mb-2">Applications Enabled</h2>
         <?php if(!empty($appsEnabled)): ?>
