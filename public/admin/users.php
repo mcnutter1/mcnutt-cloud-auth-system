@@ -32,7 +32,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $pdo->beginTransaction();
     if($id){
       if($password!==''){
-        $st=$pdo->prepare("UPDATE users SET email=?, name=?, username=?, password_hash=?, is_active=?, allow_api_keys=? WHERE id=?");
+        $st=$pdo->prepare("UPDATE users SET email=?, name=?, username=?, password_hash=?, password_changed_at=NOW(), force_password_reset=0, is_active=?, allow_api_keys=? WHERE id=?");
         $st->execute([$email,$name,$username,password_hash($password,PASSWORD_DEFAULT),$is_active,$allow_api_keys,$id]);
       } else {
         $st=$pdo->prepare("UPDATE users SET email=?, name=?, username=?, is_active=?, allow_api_keys=? WHERE id=?");
@@ -41,7 +41,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       $userId = $id;
     } else {
       if($password==='') throw new Exception('Password required for new user.');
-      $st=$pdo->prepare("INSERT INTO users (email,name,username,password_hash,is_active,allow_api_keys) VALUES (?,?,?,?,?,?)");
+      $st=$pdo->prepare("INSERT INTO users (email,name,username,password_hash,password_changed_at,is_active,allow_api_keys) VALUES (?,?,?,?,NOW(),?,?)");
       $st->execute([$email,$name,$username,password_hash($password,PASSWORD_DEFAULT),$is_active,$allow_api_keys]);
       $userId = (int)$pdo->lastInsertId();
     }
@@ -92,6 +92,18 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action']) && $_POST['act
   }catch(Throwable $e){ $err=$e->getMessage(); }
 }
 
+// Force/clear password reset requirement (POST)
+if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action']) && $_POST['action']==='force_reset'){
+  csrf_validate();
+  try{
+    $uid=(int)($_POST['uid']??0); $flag=(int)($_POST['flag']??1);
+    $pdo->prepare('UPDATE users SET force_password_reset=? WHERE id=?')->execute([$flag,$uid]);
+    $actorId = (int)($_SESSION['pid'] ?? 0);
+    log_event($pdo, 'user', $actorId, 'admin.user.force_password_reset', ['user_id'=>$uid,'force_password_reset'=>$flag]);
+    $msg = $flag ? 'Password reset required on next login.' : 'Password reset requirement cleared.';
+  }catch(Throwable $e){ $err=$e->getMessage(); }
+}
+
 // Fetch users for list
 $users = $pdo->query("SELECT u.*, (SELECT COUNT(*) FROM user_roles ur WHERE ur.user_id=u.id) role_count, GROUP_CONCAT(DISTINCT ur.role_id) AS roles_csv, GROUP_CONCAT(DISTINCT a.id) AS apps_csv FROM users u LEFT JOIN user_roles ur ON ur.user_id=u.id LEFT JOIN user_app_access uaa ON uaa.user_id=u.id LEFT JOIN apps a ON a.id=uaa.app_id GROUP BY u.id ORDER BY u.created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -106,7 +118,7 @@ require_once __DIR__.'/_partials/header.php';
       <div class="card shadow-sm"><div class="card-body">
         <div class="table-responsive">
           <table class="table align-middle mb-0">
-            <thead><tr><th>ID</th><th>User</th><th>Username</th><th>Roles</th><th>Status</th><th>API Keys</th><th></th></tr></thead>
+            <thead><tr><th>ID</th><th>User</th><th>Username</th><th>Roles</th><th>Status</th><th>API Keys</th><th>Pwd Changed</th><th>Force Reset</th><th></th></tr></thead>
             <tbody>
             <?php foreach($users as $u): ?>
               <tr>
@@ -120,7 +132,19 @@ require_once __DIR__.'/_partials/header.php';
                 <td>
                   <?php if((int)($u['allow_api_keys'] ?? 0)===1): ?><span class="badge text-bg-primary">Enabled</span><?php else: ?><span class="badge text-bg-light text-muted">Disabled</span><?php endif; ?>
                 </td>
+                <td class="text-muted small"><?= htmlspecialchars($u['password_changed_at'] ?? '—') ?></td>
+                <td>
+                  <?php $forced = (int)($u['force_password_reset'] ?? 0)===1; ?>
+                  <?php if($forced): ?><span class="badge text-bg-warning">Required</span><?php else: ?><span class="badge text-bg-light text-muted">No</span><?php endif; ?>
+                </td>
                 <td class="text-end">
+                  <form method="post" class="d-inline">
+                    <?php csrf_field(); ?>
+                    <input type="hidden" name="action" value="force_reset"/>
+                    <input type="hidden" name="uid" value="<?=$u['id']?>"/>
+                    <input type="hidden" name="flag" value="<?= $forced?0:1 ?>"/>
+                    <button class="btn btn-sm <?= $forced?'btn-outline-secondary':'btn-outline-warning' ?>" onclick="return confirm('Are you sure?')"><?= $forced?'Clear Requirement':'Require Change' ?></button>
+                  </form>
                   <button class="btn btn-sm btn-outline-primary" type="button" onclick="prefillUser(<?=htmlspecialchars(json_encode(['id'=>$u['id'],'email'=>$u['email'],'name'=>$u['name'],'username'=>$u['username'],'is_active'=>$u['is_active'],'allow_api_keys'=>$u['allow_api_keys'],'roles_csv'=>$u['roles_csv']]))?>)">Edit</button>
                   <form method="post" class="d-inline">
                     <?php csrf_field(); ?>

@@ -29,7 +29,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     else {
       $pdo->beginTransaction();
       try{
-        $pdo->prepare('UPDATE users SET password_hash=? WHERE id=?')->execute([password_hash($pwd,PASSWORD_DEFAULT),(int)$reset['user_id']]);
+        $pdo->prepare('UPDATE users SET password_hash=?, password_changed_at=NOW(), force_password_reset=0 WHERE id=?')->execute([password_hash($pwd,PASSWORD_DEFAULT),(int)$reset['user_id']]);
         $pdo->prepare('UPDATE password_resets SET used_at=NOW() WHERE id=?')->execute([(int)$reset['id']]);
         // Revoke existing sessions for this user
         $pdo->prepare("UPDATE sessions SET revoked_at=NOW() WHERE user_type='user' AND user_id=? AND revoked_at IS NULL")->execute([(int)$reset['user_id']]);

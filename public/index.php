@@ -67,6 +67,18 @@ if($_SERVER['REQUEST_METHOD']!=='POST' && $appId && isset($_SESSION['ptype'], $_
     exit;
   }
   if($app && $app['is_active'] && (int)($app['auto_login'] ?? 1)===1){
+    // If user must change password, redirect to interstitial update page first
+    if($_SESSION['ptype']==='user'){
+      try{
+        $st=$pdo->prepare('SELECT force_password_reset FROM users WHERE id=?');
+        $st->execute([(int)$_SESSION['pid']]);
+        if((int)$st->fetchColumn()===1){
+          $ru = $returnUrl ?: ($app['return_url'] ?? '/');
+          header('Location: /password_change.php?app_id='.urlencode($appId).'&return_url='.urlencode($ru));
+          exit;
+        }
+      }catch(Throwable $e){ /* ignore and continue */ }
+    }
     // Enforce per-app access (deny by default)
     $aid = (int)$app['id'];
     $allowed = false;
@@ -125,6 +137,13 @@ if($_SERVER['REQUEST_METHOD']!=='POST' && $appId && isset($_SESSION['ptype'], $_
 }
 // If simply visiting the login site and already authenticated, go to profile
 if($_SERVER['REQUEST_METHOD']!=='POST' && !$appId && !$returnUrl && isset($_SESSION['ptype'], $_SESSION['pid'])){
+  if($_SESSION['ptype']==='user'){
+    try{
+      $st=$pdo->prepare('SELECT force_password_reset FROM users WHERE id=?');
+      $st->execute([(int)$_SESSION['pid']]);
+      if((int)$st->fetchColumn()===1){ header('Location: /password_change.php'); exit; }
+    }catch(Throwable $e){ /* ignore */ }
+  }
   header('Location: /profile.php'); exit;
 }
 
@@ -195,6 +214,25 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   }
 
   if($ok){
+    // If user is required to change password, redirect to interstitial change page first
+    if($principal && $principal['type']==='user'){
+      try{
+        // $user is set for password mode; for magic mode, fetch by id
+        $need = null;
+        if(isset($user)){
+          $need = (int)($user['force_password_reset'] ?? 0)===1;
+        } else {
+          $tmp=$userModel->publicProfile($principal['id']); // ensure user exists
+          $st=$pdo->prepare('SELECT force_password_reset FROM users WHERE id=?'); $st->execute([$principal['id']]);
+          $need = (int)$st->fetchColumn()===1;
+        }
+        if($need){
+          $q = http_build_query(['app_id'=>$appId ?? '', 'return_url'=>$returnUrl ?? '']);
+          header('Location: /password_change.php'.($q?'?'.$q:''));
+          exit;
+        }
+      }catch(Throwable $e){ /* continue if check fails */ }
+    }
     // If app requires MFA, redirect to MFA page before issuing payload
     if($appId){
       $app = $appModel->findByAppId($appId);

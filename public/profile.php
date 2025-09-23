@@ -47,7 +47,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         if(!$stt['ok']) throw new Exception('Password does not meet complexity requirements.');
         $row=$pdo->prepare('SELECT password_hash FROM users WHERE id=?'); $row->execute([$pid]); $ph=$row->fetchColumn();
         if(!$ph || !password_verify($current, $ph)) throw new Exception('Current password is incorrect.');
-        $pdo->prepare('UPDATE users SET password_hash=? WHERE id=?')->execute([password_hash($new,PASSWORD_DEFAULT),$pid]);
+        $pdo->prepare('UPDATE users SET password_hash=?, password_changed_at=NOW(), force_password_reset=0 WHERE id=?')->execute([password_hash($new,PASSWORD_DEFAULT),$pid]);
         $msg='Password updated.';
         // Log password change (hidden/raw handled by logger)
         require_once __DIR__.'/../src/logger.php';
@@ -97,7 +97,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 }
 
 if($ptype==='user'){
-  $st=$pdo->prepare('SELECT id,email,name,phone,username,allow_api_keys FROM users WHERE id=?'); $st->execute([$pid]); $identity=$st->fetch(PDO::FETCH_ASSOC);
+  $st=$pdo->prepare('SELECT id,email,name,phone,username,allow_api_keys,password_changed_at,force_password_reset FROM users WHERE id=?'); $st->execute([$pid]); $identity=$st->fetch(PDO::FETCH_ASSOC);
   // If current user is admin, load assigned roles for display
   $assignedRoles = [];
   if(!empty($_SESSION['is_admin'])){
@@ -228,7 +228,13 @@ if($ptype==='user' && !empty($identity['username'])){
     <?php if($ptype==='user'): ?>
     <div class="col-md-5">
       <div class="card auth-card mb-3"><div class="card-body">
-        <h2 class="h6 mb-3">Change Password</h2>
+        <h2 class="h6 mb-2">Change Password</h2>
+        <div class="small text-muted mb-2">
+          Password last changed: <?php
+            $dt = $identity['password_changed_at'] ?? null;
+            echo $dt ? htmlspecialchars($dt) : '—';
+          ?>
+        </div>
         <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#pwChangeModal">Change Password</button>
       </div></div>
       <?php if($ptype==='user'): ?>

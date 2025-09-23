@@ -7,6 +7,9 @@ CREATE TABLE users (
   public_id     VARCHAR(64) UNIQUE NULL,
   password_hash VARCHAR(255) NOT NULL,
   is_active     TINYINT(1) NOT NULL DEFAULT 1,
+  -- Track when the password was last changed and whether a change is required
+  password_changed_at TIMESTAMP NULL DEFAULT NULL,
+  force_password_reset TINYINT(1) NOT NULL DEFAULT 0,
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
