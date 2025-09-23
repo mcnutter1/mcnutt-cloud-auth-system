@@ -182,7 +182,7 @@ if($ptype==='user' && !empty($identity['username'])){
       <div class="brand-mark"><span class="material-symbols-rounded" aria-hidden="true">shield_lock</span></div>
       <div>
         <div class="brand-sub">mcnutt.cloud</div>
-        <div class="brand-headline">secure login <span class="text-muted small">My Profile</span></div>
+        <div class="brand-headline">secure login</div>
         
       </div>
     </div>
