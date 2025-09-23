@@ -179,11 +179,10 @@ if($ptype==='user' && !empty($identity['username'])){
   <div class="container" style="max-width: 920px;">
   <div class="d-flex align-items-center mb-3">
     <div class="brand">
-      <div class="brand-mark"><span class="material-symbols-rounded" aria-hidden="true">shield_lock</span></div>
+      <img class="brand-logo" src="/assets/img/mcs_logo_256.png" alt="mcnutt.cloud logo"/>
       <div>
         <div class="brand-sub">mcnutt.cloud</div>
         <div class="brand-headline">secure login</div>
-        
       </div>
     </div>
     <div class="ms-auto d-flex gap-2">

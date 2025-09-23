@@ -16,11 +16,15 @@ $roles = $auth['roles'];
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Test Application</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/assets/css/app.css" rel="stylesheet">
 </head>
 <body>
 <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom">
   <div class="container">
-    <a class="navbar-brand" href="/test/">Test Application</a>
+    <a class="navbar-brand d-flex align-items-center gap-2" href="/test/">
+      <img class="brand-logo" src="/assets/img/mcs_logo_256.png" alt="mcnutt.cloud"/>
+      <span>Test Application</span>
+    </a>
     <div class="ms-auto d-flex gap-2">
       <a class="btn btn-outline-secondary btn-sm" href="/test/protected.php">Admin Area</a>
       <a class="btn btn-outline-danger btn-sm" href="/test/auth.php?logout=1">Logout</a>

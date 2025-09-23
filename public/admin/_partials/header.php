@@ -8,7 +8,10 @@
 </head><body>
 <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom">
   <div class="container d-flex align-items-center">
-    <a class="navbar-brand" href="/admin/">Admin</a>
+    <a class="navbar-brand d-flex align-items-center gap-2" href="/admin/">
+      <img class="brand-logo" src="/assets/img/mcs_logo_256.png" alt="mcnutt.cloud"/>
+      <span>Admin</span>
+    </a>
     <div class="ms-auto d-flex gap-2">
       <a class="btn btn-outline-secondary btn-sm" href="/admin/settings.php">Settings</a>
       <a class="btn btn-outline-danger btn-sm" href="/logout.php">Logout</a>
