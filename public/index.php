@@ -365,12 +365,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   <div class="container" style="max-width: 520px;">
   <div class="card auth-card overflow-hidden">
     <div class="card-body p-4 p-md-5">
-      <div class="brand brand-lg mb-2">
-        <img class="brand-logo" src="/assets/img/mcs_logo_256.png" alt="mcnutt.cloud logo"/>
-        <div>
-          <div class="brand-sub">mcnutt.cloud</div>
-          <div class="brand-headline">secure login</div>
-        </div>
+      <div class="brand brand-lg justify-content-center mb-2">
+        <img class="brand-logo" src="/assets/img/mcs_logo_256.png" alt="mcnutt.cloud"/>
       </div>
       <hr class="header-sep"/>
     <?php if($appContext && ($appContext['is_active'] ?? 0)): $appIcon = $appContext['icon'] ?? null; ?>

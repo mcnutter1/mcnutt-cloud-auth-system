@@ -69,12 +69,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 <div class="auth-bg d-flex align-items-center" style="min-height:100vh;">
   <div class="container" style="max-width:520px;">
     <div class="card auth-card overflow-hidden"><div class="card-body p-4 p-md-5">
-      <div class="brand brand-lg mb-2">
-        <img class="brand-logo" src="/assets/img/mcs_logo_256.png" alt="mcnutt.cloud logo"/>
-        <div>
-          <div class="brand-sub">mcnutt.cloud</div>
-          <div class="brand-headline">secure login</div>
-        </div>
+      <div class="brand brand-lg justify-content-center mb-2">
+        <img class="brand-logo" src="/assets/img/mcs_logo_256.png" alt="mcnutt.cloud"/>
       </div>
       <h1 class="h5 mb-3">Forgot your password?</h1>
     <?php if($msg): ?><div class="alert alert-success"><?=htmlspecialchars($msg)?></div><?php endif; ?>

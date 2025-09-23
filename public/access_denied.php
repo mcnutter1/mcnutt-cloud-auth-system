@@ -74,12 +74,8 @@ $logoutHref = '/logout.php'.($q?('?'.http_build_query($q)):'');
   <div class="container" style="max-width:720px;">
     <div class="card auth-card">
       <div class="card-body p-4 p-md-5">
-        <div class="brand brand-lg mb-3">
-          <img class="brand-logo" src="/assets/img/mcs_logo_256.png" alt="mcnutt.cloud logo"/>
-          <div>
-            <div class="brand-sub">mcnutt.cloud</div>
-            <div class="brand-headline">secure login</div>
-          </div>
+        <div class="brand brand-lg justify-content-center mb-3">
+          <img class="brand-logo" src="/assets/img/mcs_logo_256.png" alt="mcnutt.cloud"/>
         </div>
         <div class="alert alert-<?=htmlspecialchars($alertClass)?> d-flex align-items-center gap-2" role="status" aria-live="polite">
           <span class="material-symbols-rounded" aria-hidden="true">block</span>

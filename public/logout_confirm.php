@@ -37,9 +37,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Sign out</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/assets/css/app.css" rel="stylesheet">
 </head><body>
 <div class="container py-5" style="max-width:640px;">
   <div class="card shadow-sm rounded-4"><div class="card-body p-4">
+    <div class="brand brand-lg justify-content-center mb-2">
+      <img class="brand-logo" src="/assets/img/mcs_logo_256.png" alt="mcnutt.cloud"/>
+    </div>
     <h1 class="h4 mb-3">Sign out</h1>
     <?php if($row): ?>
       <p>Do you want to sign out of this application only, or sign out everywhere (all applications)?</p>
