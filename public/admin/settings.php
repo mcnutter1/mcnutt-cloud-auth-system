@@ -130,11 +130,14 @@ require_once __DIR__.'/_partials/header.php';
               <tr>
                 <td><input type="text" class="form-control form-control-sm font-monospace" name="ip_row[]" value="<?=htmlspecialchars($ip)?>"></td>
                 <td>
-                  <select class="form-select form-select-sm" name="state_row[]">
-                    <option value="trusted" <?=$state==='trusted'?'selected':''?>>Trusted</option>
-                    <option value="blocked" <?=$state==='blocked'?'selected':''?>>Never trust</option>
-                    <option value="none" <?=$state==='none'?'selected':''?>>Neither</option>
-                  </select>
+                  <div class="select-with-caret">
+                    <select class="form-select form-select-sm" name="state_row[]">
+                      <option value="trusted" <?=$state==='trusted'?'selected':''?>>Trusted</option>
+                      <option value="blocked" <?=$state==='blocked'?'selected':''?>>Never trust</option>
+                      <option value="none" <?=$state==='none'?'selected':''?>>Neither</option>
+                    </select>
+                    <span class="material-symbols-rounded select-caret" aria-hidden="true">expand_more</span>
+                  </div>
                 </td>
                 <td><span class="badge bg-secondary-subtle text-dark"><?= (int)($counts[$ip] ?? 0) ?></span></td>
                 <td class="text-end">
@@ -149,11 +152,14 @@ require_once __DIR__.'/_partials/header.php';
       <div class="row g-2 align-items-center">
         <div class="col-md-4"><input class="form-control form-control-sm font-monospace" name="new_ip" placeholder="Add IP (e.g., 203.0.113.5)"></div>
         <div class="col-md-3">
-          <select class="form-select form-select-sm" name="new_state">
-            <option value="trusted">Trusted</option>
-            <option value="blocked">Never trust</option>
-            <option value="none" selected>Neither</option>
-          </select>
+          <div class="select-with-caret">
+            <select class="form-select form-select-sm" name="new_state">
+              <option value="trusted">Trusted</option>
+              <option value="blocked">Never trust</option>
+              <option value="none" selected>Neither</option>
+            </select>
+            <span class="material-symbols-rounded select-caret" aria-hidden="true">expand_more</span>
+          </div>
         </div>
         <div class="col-md-3">
           <button type="button" class="btn btn-sm btn-outline-primary" onclick="addRowFromInputs()">Add to Table</button>
@@ -171,11 +177,11 @@ require_once __DIR__.'/_partials/header.php';
         var tbody = document.getElementById('ip-rows');
         var tr = document.createElement('tr');
         tr.innerHTML = '<td><input type="text" class="form-control form-control-sm font-monospace" name="ip_row[]" value="'+escapeHtml(ip)+'"></td>'+
-                       '<td><select class="form-select form-select-sm" name="state_row[]">'+
+                       '<td><div class="select-with-caret"><select class="form-select form-select-sm" name="state_row[]">'+
                        '<option value="trusted"'+(state==='trusted'?' selected':'')+'>Trusted</option>'+
                        '<option value="blocked"'+(state==='blocked'?' selected':'')+'>Never trust</option>'+
                        '<option value="none"'+(state==='none'?' selected':'')+'>Neither</option>'+
-                       '</select></td>'+
+                       '</select><span class="material-symbols-rounded select-caret" aria-hidden="true">expand_more</span></div></td>'+
                        '<td><span class="badge bg-secondary-subtle text-dark">0</span></td>'+
                        '<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)">Remove</button></td>';
         tbody.appendChild(tr);
