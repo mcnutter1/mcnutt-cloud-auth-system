@@ -15,6 +15,27 @@ $pdo=db();
 
 $msg=null; $err=null; $newApiKey=null;
 
+// Normalize phone to E.164 (+countrycode + number). Basic US default for 10 digits.
+function normalize_phone_e164(?string $raw): ?string {
+  if($raw===null) return null;
+  $raw = trim($raw);
+  if($raw==='') return null;
+  // If already starts with '+', keep plus and digits only
+  if($raw[0]==='+'){
+    $digits = '+' . preg_replace('/\D+/', '', substr($raw,1));
+    // Must be + followed by 10-15 digits
+    return preg_match('/^\+[1-9]\d{9,14}$/', $digits) ? $digits : null;
+  }
+  // Strip all non-digits
+  $digits = preg_replace('/\D+/', '', $raw);
+  if($digits==='') return null;
+  // US default for 10-digits
+  if(strlen($digits)===10){ $digits = '+1'.$digits; }
+  else if(strlen($digits)>=11){ $digits = '+'.$digits; }
+  else { return null; }
+  return preg_match('/^\+[1-9]\d{9,14}$/', $digits) ? $digits : null;
+}
+
 if($_SERVER['REQUEST_METHOD']==='POST'){
   csrf_validate();
   try{
@@ -54,19 +75,23 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       } else {
         $name=trim($_POST['name']??''); $phone=trim($_POST['phone']??'');
         if($name==='') throw new Exception('Name is required.');
-        $pdo->prepare('UPDATE users SET name=?, phone=? WHERE id=?')->execute([$name,$phone?:null,$pid]);
+        $e164 = $phone!=='' ? normalize_phone_e164($phone) : null;
+        if($phone!=='' && !$e164) throw new Exception('Invalid phone number. Use format like +15551234567.');
+        $pdo->prepare('UPDATE users SET name=?, phone=? WHERE id=?')->execute([$name,$e164,$pid]);
         $msg='Profile updated.';
         require_once __DIR__.'/../src/logger.php';
-        log_event($pdo, 'user', $pid, 'profile.update', ['name'=>$name,'phone'=>$phone?:null]);
+        log_event($pdo, 'user', $pid, 'profile.update', ['name'=>$name,'phone'=>$e164]);
       }
     } else {
       // Magic key profile limited to name/phone
       $name=trim($_POST['name']??''); $phone=trim($_POST['phone']??'');
       if($name==='') throw new Exception('Name is required.');
-      $pdo->prepare('UPDATE magic_keys SET name=?, phone=? WHERE id=?')->execute([$name,$phone?:null,$pid]);
+      $e164 = $phone!=='' ? normalize_phone_e164($phone) : null;
+      if($phone!=='' && !$e164) throw new Exception('Invalid phone number. Use format like +15551234567.');
+      $pdo->prepare('UPDATE magic_keys SET name=?, phone=? WHERE id=?')->execute([$name,$e164,$pid]);
       $msg='Profile updated.';
       require_once __DIR__.'/../src/logger.php';
-      log_event($pdo, 'magic', $pid, 'profile.update', ['name'=>$name,'phone'=>$phone?:null]);
+      log_event($pdo, 'magic', $pid, 'profile.update', ['name'=>$name,'phone'=>$e164]);
     }
   }catch(Throwable $e){ $err=$e->getMessage(); }
 }
@@ -169,7 +194,7 @@ if($ptype==='user' && !empty($identity['username'])){
           <?php csrf_field(); ?>
           <div class="mb-2"><label class="form-label">Email</label><input class="form-control" value="<?=htmlspecialchars($identity['email'])?>" disabled></div>
           <div class="mb-2"><label class="form-label">Name</label><input class="form-control" name="name" value="<?=htmlspecialchars($identity['name'] ?? '')?>" required></div>
-          <div class="mb-2"><label class="form-label">Phone</label><input class="form-control" name="phone" value="<?=htmlspecialchars($identity['phone'] ?? '')?>"></div>
+          <div class="mb-2"><label class="form-label">Phone</label><input class="form-control" name="phone" value="<?=htmlspecialchars($identity['phone'] ?? '')?>" placeholder="+15551234567" inputmode="tel" pattern="^\+[1-9]\d{9,14}$"></div>
           <?php if($ptype==='user'): ?><div class="mb-2"><label class="form-label">Username</label><input class="form-control" value="<?=htmlspecialchars($identity['username'])?>" disabled></div><?php endif; ?>
           <button class="btn btn-primary">Save</button>
         </form>
@@ -232,7 +257,7 @@ if($ptype==='user' && !empty($identity['username'])){
   </div>
 
   <?php if($ptype==='user'): ?>
-  <div class="row g-4 mt-3">
+  <div class="row g-4 mt-0">
     <div class="col-md-7">
       <div class="card auth-card mb-3"><div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-2">
