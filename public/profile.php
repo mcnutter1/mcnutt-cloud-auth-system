@@ -194,9 +194,15 @@ if($ptype==='user' && !empty($identity['username'])){
           <?php csrf_field(); ?>
           <div class="mb-2"><label class="form-label">Email</label><input class="form-control" value="<?=htmlspecialchars($identity['email'])?>" disabled></div>
           <div class="mb-2"><label class="form-label">Name</label><input class="form-control" name="name" value="<?=htmlspecialchars($identity['name'] ?? '')?>" required></div>
-          <div class="mb-2"><label class="form-label">Phone</label><input class="form-control" name="phone" value="<?=htmlspecialchars($identity['phone'] ?? '')?>" placeholder="+15551234567" inputmode="tel" pattern="^\+[1-9]\d{9,14}$"></div>
+          <div class="mb-2">
+            <label class="form-label">Phone</label>
+            <input class="form-control" name="phone" value="<?=htmlspecialchars($identity['phone'] ?? '')?>" placeholder="+15551234567" inputmode="tel" pattern="^\+[1-9]\d{9,14}$" title="Use E.164 format, e.g., +15551234567">
+            <div class="form-text">Format: <code>+15551234567</code> (country code + number)</div>
+          </div>
           <?php if($ptype==='user'): ?><div class="mb-2"><label class="form-label">Username</label><input class="form-control" value="<?=htmlspecialchars($identity['username'])?>" disabled></div><?php endif; ?>
-          <button class="btn btn-primary">Save</button>
+          <div class="mt-3">
+            <button class="btn btn-primary">Save</button>
+          </div>
         </form>
       </div></div>
     </div>
