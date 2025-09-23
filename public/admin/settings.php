@@ -160,10 +160,10 @@ require_once __DIR__.'/_partials/header.php';
           </tbody>
         </table>
       </div>
-      <div class="row g-2 align-items-end">
+      <div class="row g-2 align-items-start">
         <div class="col-md-4">
           <input class="form-control form-control-sm font-monospace" name="new_ip" placeholder="Add IP (e.g., 203.0.113.5)">
-          <div class="invalid-feedback d-block mb-0" id="new-ip-feedback" style="display:none;">Enter a valid IPv4 or IPv6 address.</div>
+          <div class="invalid-feedback d-none" id="new-ip-feedback">Enter a valid IPv4 or IPv6 address.</div>
         </div>
         <div class="col-md-3">
           <div class="select-with-caret">
@@ -248,11 +248,10 @@ require_once __DIR__.'/_partials/header.php';
         return ok;
       }
       function showNewIpInvalid(flag){
-        var el = document.getElementById('new-ip-feedback');
-        if(!el) return;
-        el.style.display = flag ? 'block' : 'none';
+        var el = document.getElementById('new-ip-feedback'); if(!el) return;
         var inp = document.querySelector('input[name="new_ip"]');
-        if(inp){ if(flag) inp.classList.add('is-invalid'); else inp.classList.remove('is-invalid'); }
+        if(flag){ el.classList.remove('d-none'); el.classList.add('d-block'); inp?.classList.add('is-invalid'); }
+        else { el.classList.remove('d-block'); el.classList.add('d-none'); inp?.classList.remove('is-invalid'); }
       }
       // Attach validation to existing inputs and intercept form submit
       document.querySelectorAll('#ip-rows .ip-input').forEach(attachIpValidation);
