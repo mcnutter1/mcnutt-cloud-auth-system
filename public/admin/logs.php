@@ -18,6 +18,9 @@ $limit      = (int)($_GET['limit'] ?? 50); if($limit<1) $limit=50; if($limit>500
 $page       = max(1, (int)($_GET['page'] ?? 1));
 $offset     = ($page-1)*$limit;
 $fmt        = trim($_GET['fmt'] ?? '');
+// Quick filter: only show MFA skips due to Trusted IP
+$trustedOnly = isset($_GET['trusted_only']) ? (int)$_GET['trusted_only'] : 0;
+if($trustedOnly===1){ $event = 'mfa.skipped.trusted_ip'; }
 
 $w=[]; $p=[];
 if($event!==''){ $w[]='event = ?'; $p[]=$event; }
@@ -94,8 +97,13 @@ require_once __DIR__.'/_partials/header.php';
   <h1 class="h4 mb-3">Logs</h1>
   <form method="get" class="card shadow-sm mb-3"><div class="card-body">
     <div class="row g-3 align-items-end">
-      <div class="col-12 col-md-3">
-        <label class="form-label">Event</label>
+      <div class="col-12 col-md-4">
+        <label class="form-label d-flex align-items-center gap-2">Event
+          <span class="form-check ms-2">
+            <input class="form-check-input" type="checkbox" name="trusted_only" id="f-trusted-only" value="1" <?php if($trustedOnly===1) echo 'checked'; ?>>
+            <label class="form-check-label small" for="f-trusted-only">Only: Trusted IP MFA Skips</label>
+          </span>
+        </label>
         <select name="event" class="form-select">
           <option value="">All</option>
           <?php foreach($eventOpts as $opt): ?>

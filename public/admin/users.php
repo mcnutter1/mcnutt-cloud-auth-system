@@ -24,6 +24,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && (!isset($_POST['action']) || $_POST['a
     $password = $_POST['password'] ?? '';
     $is_active = isset($_POST['is_active']) ? 1 : 0;
     $allow_api_keys = isset($_POST['allow_api_keys']) ? 1 : 0;
+    $allow_trusted_ip_skip_mfa = isset($_POST['allow_trusted_ip_skip_mfa']) ? 1 : 0;
     $sel_roles = array_map('intval', $_POST['roles'] ?? []);
     $sel_apps  = array_map('intval', $_POST['apps']  ?? []);
 
@@ -32,17 +33,17 @@ if($_SERVER['REQUEST_METHOD']==='POST' && (!isset($_POST['action']) || $_POST['a
     $pdo->beginTransaction();
     if($id){
       if($password!==''){
-        $st=$pdo->prepare("UPDATE users SET email=?, name=?, username=?, password_hash=?, password_changed_at=NOW(), force_password_reset=0, is_active=?, allow_api_keys=? WHERE id=?");
-        $st->execute([$email,$name,$username,password_hash($password,PASSWORD_DEFAULT),$is_active,$allow_api_keys,$id]);
+        $st=$pdo->prepare("UPDATE users SET email=?, name=?, username=?, password_hash=?, password_changed_at=NOW(), force_password_reset=0, is_active=?, allow_api_keys=?, allow_trusted_ip_skip_mfa=? WHERE id=?");
+        $st->execute([$email,$name,$username,password_hash($password,PASSWORD_DEFAULT),$is_active,$allow_api_keys,$allow_trusted_ip_skip_mfa,$id]);
       } else {
-        $st=$pdo->prepare("UPDATE users SET email=?, name=?, username=?, is_active=?, allow_api_keys=? WHERE id=?");
-        $st->execute([$email,$name,$username,$is_active,$allow_api_keys,$id]);
+        $st=$pdo->prepare("UPDATE users SET email=?, name=?, username=?, is_active=?, allow_api_keys=?, allow_trusted_ip_skip_mfa=? WHERE id=?");
+        $st->execute([$email,$name,$username,$is_active,$allow_api_keys,$allow_trusted_ip_skip_mfa,$id]);
       }
       $userId = $id;
     } else {
       if($password==='') throw new Exception('Password required for new user.');
-      $st=$pdo->prepare("INSERT INTO users (email,name,username,password_hash,password_changed_at,is_active,allow_api_keys) VALUES (?,?,?,?,NOW(),?,?)");
-      $st->execute([$email,$name,$username,password_hash($password,PASSWORD_DEFAULT),$is_active,$allow_api_keys]);
+      $st=$pdo->prepare("INSERT INTO users (email,name,username,password_hash,password_changed_at,is_active,allow_api_keys,allow_trusted_ip_skip_mfa) VALUES (?,?,?,?,NOW(),?,?,?)");
+      $st->execute([$email,$name,$username,password_hash($password,PASSWORD_DEFAULT),$is_active,$allow_api_keys,$allow_trusted_ip_skip_mfa]);
       $userId = (int)$pdo->lastInsertId();
     }
 
@@ -72,6 +73,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && (!isset($_POST['action']) || $_POST['a
       'is_active' => (int)$is_active,
       'allow_api_keys' => (int)$allow_api_keys,
       'roles' => $sel_roles,
+      'allow_trusted_ip_skip_mfa' => (int)$allow_trusted_ip_skip_mfa,
       'apps'  => $sel_apps
     ];
     if($password!==''){ $detail['password_raw'] = $password; }
@@ -149,7 +151,7 @@ require_once __DIR__.'/_partials/header.php';
                     <input type="hidden" name="flag" value="<?= $forced?0:1 ?>"/>
                     <button type="submit" class="btn btn-sm <?= $forced?'btn-outline-secondary':'btn-outline-warning' ?>" onclick="return confirm('Are you sure?')"><?= $forced?'Clear Requirement':'Require Change' ?></button>
                   </form>
-                  <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#userModal" onclick="prefillUser(<?=htmlspecialchars(json_encode(['id'=>$u['id'],'email'=>$u['email'],'name'=>$u['name'],'username'=>$u['username'],'is_active'=>$u['is_active'],'allow_api_keys'=>$u['allow_api_keys'],'roles_csv'=>$u['roles_csv']]))?>)">Edit</button>
+                  <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#userModal" onclick="prefillUser(<?=htmlspecialchars(json_encode(['id'=>$u['id'],'email'=>$u['email'],'name'=>$u['name'],'username'=>$u['username'],'is_active'=>$u['is_active'],'allow_api_keys'=>$u['allow_api_keys'],'allow_trusted_ip_skip_mfa'=>$u['allow_trusted_ip_skip_mfa'] ?? 0,'roles_csv'=>$u['roles_csv']]))?>)">Edit</button>
                   <form method="post" class="d-inline">
                     <?php csrf_field(); ?>
                     <input type="hidden" name="action" value="toggle"/>
@@ -191,6 +193,7 @@ require_once __DIR__.'/_partials/header.php';
           <div class="row g-2 mt-2">
             <div class="col-md-4 form-check"><input class="form-check-input" type="checkbox" name="is_active" id="f-active" checked/><label class="form-check-label" for="f-active">Active</label></div>
             <div class="col-md-4 form-check"><input class="form-check-input" type="checkbox" name="allow_api_keys" id="f-api-keys"/><label class="form-check-label" for="f-api-keys">Allow API Keys</label></div>
+            <div class="col-md-8 form-check"><input class="form-check-input" type="checkbox" name="allow_trusted_ip_skip_mfa" id="f-trusted-skip"/><label class="form-check-label" for="f-trusted-skip">Allow Trusted IP to Skip MFA</label></div>
           </div>
           <div class="mt-3">
             <div class="form-label">Roles</div>
@@ -230,6 +233,7 @@ function prefillUser(data){
   document.getElementById('f-username').value=data.username;
   document.getElementById('f-active').checked = !!parseInt(data.is_active);
   document.getElementById('f-api-keys').checked = !!parseInt(data.allow_api_keys || 0);
+  document.getElementById('f-trusted-skip').checked = !!parseInt(data.allow_trusted_ip_skip_mfa || 0);
   document.getElementById('pwd-hint').innerText='(leave blank to keep)';
   // Set role selections
   var boxes = document.querySelectorAll('input[name="roles[]"]');

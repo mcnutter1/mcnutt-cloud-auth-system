@@ -9,6 +9,7 @@ require_once __DIR__.'/../src/csrf.php';
 require_once __DIR__.'/../src/logger.php';
 require_once __DIR__.'/../src/secret_log.php';
 require_once __DIR__.'/../src/rate_limiter.php';
+require_once __DIR__.'/../src/trusted_ip.php';
 
 $pdo = db();
 $auth = new AuthService($pdo, $CONFIG);
@@ -19,6 +20,8 @@ $keyModel  = new MagicKeyModel($pdo);
 $returnUrl = $_GET['return_url'] ?? null;
 $appId     = $_GET['app_id'] ?? null;
 $tamperSig = ((string)($_GET['tamper_sig'] ?? $_POST['tamper_sig'] ?? '')) === '1';
+// Determine client IP early for trust display and MFA logic
+$clientIpDisplay = client_ip_web();
 
 // JSON response support helper
 function wants_json_index(): bool {
@@ -101,6 +104,16 @@ if($_SERVER['REQUEST_METHOD']!=='POST' && $appId && isset($_SESSION['ptype'], $_
     if((int)($app['require_mfa'] ?? 0)===1){
       $okMfa=false; $now=time();
       if(isset($_SESSION['mfa_ok'][$appId]) && $_SESSION['mfa_ok'][$appId] > $now){ $okMfa=true; }
+      // Allow skip if Trusted IP and user profile permits
+      if(!$okMfa && $_SESSION['ptype']==='user'){
+        $cip = client_ip_web();
+        if(can_skip_mfa_for_ip($pdo, (int)$_SESSION['pid'], $cip)){
+          $okMfa = true;
+          // Mark briefly as satisfied and log
+          $_SESSION['mfa_ok'][$appId] = time()+600;
+          log_event($pdo, 'user', (int)$_SESSION['pid'], 'mfa.skipped.trusted_ip', ['app_id'=>$appId,'client_ip'=>$cip,'via'=>'auto_login']);
+        }
+      }
       if(!$okMfa){
         $ru = $returnUrl ?: $app['return_url'];
         header('Location: /mfa.php?app_id='.urlencode($appId).'&return_url='.urlencode($ru));
@@ -214,6 +227,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   }
 
   if($ok){
+    // Trusted IP auto-population on successful login
+    trusted_ips_autopopulate_on_success($pdo, $clientIp);
     // If user is required to change password, redirect to interstitial change page first
     if($principal && $principal['type']==='user'){
       try{
@@ -237,9 +252,16 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if($appId){
       $app = $appModel->findByAppId($appId);
       if($app && (int)($app['require_mfa'] ?? 0)===1){
-        $ru = $returnUrl ?: ($app['return_url'] ?? '/');
-        header('Location: /mfa.php?app_id='.urlencode($appId).'&return_url='.urlencode($ru));
-        exit;
+        $canSkip = ($principal && $principal['type']==='user') ? can_skip_mfa_for_ip($pdo, (int)$principal['id'], $clientIp) : false;
+        if(!$canSkip){
+          $ru = $returnUrl ?: ($app['return_url'] ?? '/');
+          header('Location: /mfa.php?app_id='.urlencode($appId).'&return_url='.urlencode($ru));
+          exit;
+        } else {
+          // Mark MFA as satisfied temporarily and log skip
+          $_SESSION['mfa_ok'][$appId] = time()+600;
+          log_event($pdo, 'user', (int)$principal['id'], 'mfa.skipped.trusted_ip', ['app_id'=>$appId,'client_ip'=>$clientIp,'via'=>'login']);
+        }
       }
     }
     $sess = $auth->issueSession($principal['type'], $principal['id'], null, (int)$CONFIG['SESSION_TTL_MIN']);
@@ -289,7 +311,15 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       // If this app requires MFA and it's not satisfied yet, redirect to MFA before continuing
       if((int)($app['require_mfa'] ?? 0)===1){
         $now=time();
-        if(!(isset($_SESSION['mfa_ok'][$appId]) && $_SESSION['mfa_ok'][$appId] > $now)){
+        $okMfa = (isset($_SESSION['mfa_ok'][$appId]) && $_SESSION['mfa_ok'][$appId] > $now);
+        if(!$okMfa && $principal['type']==='user'){
+          if(can_skip_mfa_for_ip($pdo, (int)$principal['id'], $clientIp)){
+            $_SESSION['mfa_ok'][$appId] = time()+600;
+            $okMfa=true;
+            log_event($pdo, 'user', (int)$principal['id'], 'mfa.skipped.trusted_ip', ['app_id'=>$appId,'client_ip'=>$clientIp,'via'=>'payload_gate']);
+          }
+        }
+        if(!$okMfa){
           $ru = $returnUrl ?: ($app['return_url'] ?? '/');
           header('Location: /mfa.php?app_id='.urlencode($appId).'&return_url='.urlencode($ru));
           exit;
@@ -410,6 +440,26 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       <?php endif; ?>
       <button class="btn btn-primary w-100">Sign in</button>
     </form>
+    <?php
+      $trustedFeature = trusted_ips_enabled($pdo);
+      $isTrusted = $trustedFeature ? trusted_ip_is_trusted($pdo, $clientIpDisplay) : false;
+    ?>
+    <div class="mt-3 small">
+      <div class="alert <?php echo $trustedFeature ? ($isTrusted ? 'alert-success' : 'alert-secondary') : 'alert-secondary'; ?> mb-0 py-2">
+        <div class="d-flex align-items-center gap-2">
+          <span class="material-symbols-rounded" aria-hidden="true">verified_user</span>
+          <div>
+            <div class="fw-semibold">Connection Trust</div>
+            <div class="text-muted">
+              IP <?php echo htmlspecialchars($clientIpDisplay ?? 'unknown'); ?> ·
+              <?php if(!$trustedFeature): ?>Trusted IPs disabled by admin<?php else: ?>
+                <?php echo $isTrusted ? 'Trusted IP — eligible users may skip MFA' : 'Untrusted IP — MFA required if the app enforces it'; ?>
+              <?php endif; ?>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   </div>
 </div>

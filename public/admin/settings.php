@@ -23,6 +23,20 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $settings->set('SENDGRID_API_KEY', trim($_POST['SENDGRID_API_KEY'] ?? ''));
     $settings->set('SENDGRID_FROM_EMAIL', trim($_POST['SENDGRID_FROM_EMAIL'] ?? ''));
     $settings->set('SENDGRID_FROM_NAME', trim($_POST['SENDGRID_FROM_NAME'] ?? ''));
+    // Trusted IPs
+    $settings->set('TRUSTED_IPS_ENABLED', isset($_POST['TRUSTED_IPS_ENABLED']) ? '1' : '0');
+    $settings->set('TRUSTED_IPS_AUTO', isset($_POST['TRUSTED_IPS_AUTO']) ? '1' : '0');
+    $thr = (int)($_POST['TRUSTED_IPS_THRESHOLD'] ?? 5); if($thr<1) $thr=1; if($thr>1000) $thr=1000;
+    $settings->set('TRUSTED_IPS_THRESHOLD', (string)$thr);
+    // Normalize lists: one IP per line, strip comments
+    $norm = function(string $raw): string {
+      $out=[]; foreach(preg_split('/\r?\n/', $raw) as $ln){
+        $ln=trim($ln); if($ln==='') continue; if(str_starts_with($ln,'#')) continue; $ln=preg_split('/\s|#/',$ln)[0]??$ln; if($ln!=='') $out[$ln]=true;
+      }
+      ksort($out, SORT_STRING); return implode("\n", array_keys($out));
+    };
+    $settings->set('TRUSTED_IPS_LIST', $norm((string)($_POST['TRUSTED_IPS_LIST'] ?? '')));
+    $settings->set('TRUSTED_IPS_BLOCKLIST', $norm((string)($_POST['TRUSTED_IPS_BLOCKLIST'] ?? '')));
     $msg='Settings saved.';
   }catch(Throwable $e){ $err=$e->getMessage(); }
 }
@@ -64,6 +78,27 @@ require_once __DIR__.'/_partials/header.php';
         <div class="col-md-6"><label class="form-label">From Name</label><input class="form-control" name="SENDGRID_FROM_NAME" value="<?=htmlspecialchars($vals['SENDGRID_FROM_NAME'] ?? '')?>" placeholder="Secure Login"></div>
       </div>
       <div class="form-text mt-2">Emails are sent via SendGrid with a branded HTML template and a 6‑digit verification code.</div>
+    </div></div>
+
+    <div class="card shadow-sm mb-4"><div class="card-body">
+      <h2 class="h6 mb-3">Trusted IPs</h2>
+      <div class="row g-3 align-items-center mb-2">
+        <div class="col-md-3 form-check"><input class="form-check-input" type="checkbox" name="TRUSTED_IPS_ENABLED" id="f-trusted-enabled" <?=(int)($vals['TRUSTED_IPS_ENABLED'] ?? '0')? 'checked':''?>/><label class="form-check-label" for="f-trusted-enabled">Enable Trusted IPs</label></div>
+        <div class="col-md-3 form-check"><input class="form-check-input" type="checkbox" name="TRUSTED_IPS_AUTO" id="f-trusted-auto" <?=(int)($vals['TRUSTED_IPS_AUTO'] ?? '1')? 'checked':''?>/><label class="form-check-label" for="f-trusted-auto">Auto‑populate</label></div>
+        <div class="col-md-3"><label class="form-label">Auto Threshold</label><input class="form-control" type="number" min="1" max="1000" name="TRUSTED_IPS_THRESHOLD" value="<?=htmlspecialchars($vals['TRUSTED_IPS_THRESHOLD'] ?? '5')?>"/></div>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Trusted IP List (one per line)</label>
+          <textarea class="form-control font-monospace" name="TRUSTED_IPS_LIST" rows="6" placeholder="203.0.113.5&#10;198.51.100.7"><?=htmlspecialchars($vals['TRUSTED_IPS_LIST'] ?? '')?></textarea>
+          <div class="form-text">IPs here are considered Trusted. Auto‑population only adds; it never removes.</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Blocked IPs (never trust)</label>
+          <textarea class="form-control font-monospace" name="TRUSTED_IPS_BLOCKLIST" rows="6" placeholder="192.0.2.10"><?=htmlspecialchars($vals['TRUSTED_IPS_BLOCKLIST'] ?? '')?></textarea>
+          <div class="form-text">IPs on this list will not be auto‑added, even if frequent.</div>
+        </div>
+      </div>
     </div></div>
 
     <div class="d-flex gap-2">

@@ -120,6 +120,8 @@ CREATE TABLE password_resets (
 -- API Keys for users
 -- Users can be granted permission to create personal API keys for programmatic access.
 ALTER TABLE users ADD COLUMN allow_api_keys TINYINT(1) NOT NULL DEFAULT 0 AFTER is_active;
+-- Allow skipping MFA on trusted IPs (per-user opt-in controlled by admin)
+ALTER TABLE users ADD COLUMN allow_trusted_ip_skip_mfa TINYINT(1) NOT NULL DEFAULT 0 AFTER allow_api_keys;
 
 CREATE TABLE api_keys (
   id           BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
