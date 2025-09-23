@@ -453,7 +453,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             <div class="text-muted">
               IP <?php echo htmlspecialchars($clientIpDisplay ?? 'unknown'); ?> ·
               <?php if(!$trustedFeature): ?>Trusted IPs disabled by admin<?php else: ?>
-                <?php echo $isTrusted ? 'Trusted IP — eligible users may skip MFA' : 'Untrusted IP — MFA required if the app enforces it'; ?>
+                <?php echo $isTrusted ? 'is Trusted' : 'is Untrusted'; ?>
               <?php endif; ?>
             </div>
           </div>

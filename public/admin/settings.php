@@ -28,20 +28,52 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $settings->set('TRUSTED_IPS_AUTO', isset($_POST['TRUSTED_IPS_AUTO']) ? '1' : '0');
     $thr = (int)($_POST['TRUSTED_IPS_THRESHOLD'] ?? 5); if($thr<1) $thr=1; if($thr>1000) $thr=1000;
     $settings->set('TRUSTED_IPS_THRESHOLD', (string)$thr);
-    // Normalize lists: one IP per line, strip comments
-    $norm = function(string $raw): string {
-      $out=[]; foreach(preg_split('/\r?\n/', $raw) as $ln){
-        $ln=trim($ln); if($ln==='') continue; if(str_starts_with($ln,'#')) continue; $ln=preg_split('/\s|#/',$ln)[0]??$ln; if($ln!=='') $out[$ln]=true;
+    // Build lists from rows
+    $trusted = [];
+    $blocked = [];
+    $rowsIp   = $_POST['ip_row'] ?? [];
+    $rowsStat = $_POST['state_row'] ?? [];
+    if(is_array($rowsIp) && is_array($rowsStat)){
+      $n = min(count($rowsIp), count($rowsStat));
+      for($i=0; $i<$n; $i++){
+        $ip = trim((string)$rowsIp[$i]); if($ip==='') continue;
+        $state = (string)$rowsStat[$i];
+        if($state==='trusted') $trusted[$ip]=true;
+        if($state==='blocked') $blocked[$ip]=true;
       }
-      ksort($out, SORT_STRING); return implode("\n", array_keys($out));
-    };
-    $settings->set('TRUSTED_IPS_LIST', $norm((string)($_POST['TRUSTED_IPS_LIST'] ?? '')));
-    $settings->set('TRUSTED_IPS_BLOCKLIST', $norm((string)($_POST['TRUSTED_IPS_BLOCKLIST'] ?? '')));
+    }
+    // Add new entry if submitted
+    $newIp = trim((string)($_POST['new_ip'] ?? ''));
+    $newState = (string)($_POST['new_state'] ?? '');
+    if($newIp !== '' && in_array($newState, ['trusted','blocked','none'], true)){
+      if($newState==='trusted'){ $trusted[$newIp]=true; unset($blocked[$newIp]); }
+      if($newState==='blocked'){ $blocked[$newIp]=true; unset($trusted[$newIp]); }
+      // 'none' means neither list
+    }
+    ksort($trusted, SORT_STRING); ksort($blocked, SORT_STRING);
+    $settings->set('TRUSTED_IPS_LIST', implode("\n", array_keys($trusted)));
+    $settings->set('TRUSTED_IPS_BLOCKLIST', implode("\n", array_keys($blocked)));
     $msg='Settings saved.';
   }catch(Throwable $e){ $err=$e->getMessage(); }
 }
 
 $vals = $settings->all();
+// Build IP rows for unified table
+$normList = function(string $raw): array {
+  $out=[]; foreach(preg_split('/\r?\n/', $raw) as $ln){ $ln=trim($ln); if($ln==='') continue; if(str_starts_with($ln,'#')) continue; $ln=preg_split('/\s|#/',$ln)[0]??$ln; if($ln!=='') $out[$ln]=true; } return array_keys($out);
+};
+$trustedList = $normList((string)($vals['TRUSTED_IPS_LIST'] ?? ''));
+$blockedList = $normList((string)($vals['TRUSTED_IPS_BLOCKLIST'] ?? ''));
+$ipUnion = array_values(array_unique(array_merge($trustedList, $blockedList)));
+sort($ipUnion, SORT_STRING);
+// Fetch recent success counts for these IPs (last 180 days)
+$counts = [];
+if($ipUnion){
+  $ph = implode(',', array_fill(0, count($ipUnion), '?'));
+  $st=$pdo->prepare("SELECT ip, COUNT(*) AS c FROM logs WHERE event='login.auth.success' AND ip IN ($ph) AND ts>DATE_SUB(NOW(), INTERVAL 180 DAY) GROUP BY ip");
+  $st->execute($ipUnion);
+  while($r=$st->fetch(PDO::FETCH_ASSOC)){$counts[(string)$r['ip']] = (int)$r['c'];}
+}
 
 require_once __DIR__.'/_partials/header.php';
 ?>
@@ -82,23 +114,75 @@ require_once __DIR__.'/_partials/header.php';
 
     <div class="card shadow-sm mb-4"><div class="card-body">
       <h2 class="h6 mb-3">Trusted IPs</h2>
-      <div class="row g-3 align-items-center mb-2">
+      <div class="row g-3 align-items-center mb-3">
         <div class="col-md-3 form-check"><input class="form-check-input" type="checkbox" name="TRUSTED_IPS_ENABLED" id="f-trusted-enabled" <?=(int)($vals['TRUSTED_IPS_ENABLED'] ?? '0')? 'checked':''?>/><label class="form-check-label" for="f-trusted-enabled">Enable Trusted IPs</label></div>
         <div class="col-md-3 form-check"><input class="form-check-input" type="checkbox" name="TRUSTED_IPS_AUTO" id="f-trusted-auto" <?=(int)($vals['TRUSTED_IPS_AUTO'] ?? '1')? 'checked':''?>/><label class="form-check-label" for="f-trusted-auto">Auto‑populate</label></div>
         <div class="col-md-3"><label class="form-label">Auto Threshold</label><input class="form-control" type="number" min="1" max="1000" name="TRUSTED_IPS_THRESHOLD" value="<?=htmlspecialchars($vals['TRUSTED_IPS_THRESHOLD'] ?? '5')?>"/></div>
       </div>
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label">Trusted IP List (one per line)</label>
-          <textarea class="form-control font-monospace" name="TRUSTED_IPS_LIST" rows="6" placeholder="203.0.113.5&#10;198.51.100.7"><?=htmlspecialchars($vals['TRUSTED_IPS_LIST'] ?? '')?></textarea>
-          <div class="form-text">IPs here are considered Trusted. Auto‑population only adds; it never removes.</div>
+      <div class="table-responsive mb-3">
+        <table class="table table-sm align-middle">
+          <thead><tr><th style="width:220px;">IP</th><th style="width:140px;">Status</th><th style="width:160px;">Success (180d)</th><th></th></tr></thead>
+          <tbody id="ip-rows">
+            <?php if(!$ipUnion): ?>
+              <tr class="text-muted"><td colspan="4">No IPs configured.</td></tr>
+            <?php else: ?>
+              <?php foreach($ipUnion as $idx=>$ip): $isT = in_array($ip, $trustedList, true); $isB = in_array($ip, $blockedList, true); $state = $isB ? 'blocked' : ($isT ? 'trusted' : 'none'); ?>
+              <tr>
+                <td><input type="text" class="form-control form-control-sm font-monospace" name="ip_row[]" value="<?=htmlspecialchars($ip)?>"></td>
+                <td>
+                  <select class="form-select form-select-sm" name="state_row[]">
+                    <option value="trusted" <?=$state==='trusted'?'selected':''?>>Trusted</option>
+                    <option value="blocked" <?=$state==='blocked'?'selected':''?>>Never trust</option>
+                    <option value="none" <?=$state==='none'?'selected':''?>>Neither</option>
+                  </select>
+                </td>
+                <td><span class="badge bg-secondary-subtle text-dark"><?= (int)($counts[$ip] ?? 0) ?></span></td>
+                <td class="text-end">
+                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)" aria-label="Remove row">Remove</button>
+                </td>
+              </tr>
+              <?php endforeach; ?>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+      <div class="row g-2 align-items-center">
+        <div class="col-md-4"><input class="form-control form-control-sm font-monospace" name="new_ip" placeholder="Add IP (e.g., 203.0.113.5)"></div>
+        <div class="col-md-3">
+          <select class="form-select form-select-sm" name="new_state">
+            <option value="trusted">Trusted</option>
+            <option value="blocked">Never trust</option>
+            <option value="none" selected>Neither</option>
+          </select>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Blocked IPs (never trust)</label>
-          <textarea class="form-control font-monospace" name="TRUSTED_IPS_BLOCKLIST" rows="6" placeholder="192.0.2.10"><?=htmlspecialchars($vals['TRUSTED_IPS_BLOCKLIST'] ?? '')?></textarea>
-          <div class="form-text">IPs on this list will not be auto‑added, even if frequent.</div>
+        <div class="col-md-3">
+          <button type="button" class="btn btn-sm btn-outline-primary" onclick="addRowFromInputs()">Add to Table</button>
         </div>
       </div>
+      <div class="form-text mt-2">“Never trust” prevents auto‑add. “Neither” keeps the IP off both lists.</div>
+      <script>
+      function removeRow(btn){
+        var tr = btn.closest('tr'); if(tr) tr.remove();
+      }
+      function addRowFromInputs(){
+        var ip = document.querySelector('input[name="new_ip"]').value.trim();
+        var state = document.querySelector('select[name="new_state"]').value;
+        if(!ip) return;
+        var tbody = document.getElementById('ip-rows');
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td><input type="text" class="form-control form-control-sm font-monospace" name="ip_row[]" value="'+escapeHtml(ip)+'"></td>'+
+                       '<td><select class="form-select form-select-sm" name="state_row[]">'+
+                       '<option value="trusted"'+(state==='trusted'?' selected':'')+'>Trusted</option>'+
+                       '<option value="blocked"'+(state==='blocked'?' selected':'')+'>Never trust</option>'+
+                       '<option value="none"'+(state==='none'?' selected':'')+'>Neither</option>'+
+                       '</select></td>'+
+                       '<td><span class="badge bg-secondary-subtle text-dark">0</span></td>'+
+                       '<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)">Remove</button></td>';
+        tbody.appendChild(tr);
+        document.querySelector('input[name="new_ip"]').value='';
+      }
+      function escapeHtml(s){ return s.replace(/[&<>\"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]; }); }
+      </script>
     </div></div>
 
     <div class="d-flex gap-2">
