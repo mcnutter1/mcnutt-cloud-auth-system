@@ -13,8 +13,8 @@ $msg = null; $err = null;
 $roles = $pdo->query("SELECT id,name FROM roles ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
 $apps  = $pdo->query("SELECT id, app_id, name FROM apps WHERE is_active=1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
 
-// Handle create/update
-if($_SERVER['REQUEST_METHOD']==='POST'){
+// Handle create/update (only when no specific action or action==='save')
+if($_SERVER['REQUEST_METHOD']==='POST' && (!isset($_POST['action']) || $_POST['action']==='save')){
   csrf_validate();
   try {
     $id = isset($_POST['id']) && $_POST['id']!=='' ? (int)$_POST['id'] : null;
@@ -178,6 +178,7 @@ require_once __DIR__.'/_partials/header.php';
       <div class="modal-body">
         <form method="post" autocomplete="off" id="user-form">
           <?php csrf_field(); ?>
+          <input type="hidden" name="action" value="save"/>
           <input type="hidden" name="id" id="f-id" value=""/>
           <div class="row g-2">
             <div class="col-md-6"><label class="form-label">Email</label><input name="email" id="f-email" type="email" class="form-control" required/></div>
