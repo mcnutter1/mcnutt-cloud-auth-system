@@ -54,6 +54,37 @@ $sql = "SELECT id, ts, actor_type, actor_id, event, ip, detail FROM logs $where 
 $st = $pdo->prepare($sql); $st->execute($p);
 $rows = $st->fetchAll(PDO::FETCH_ASSOC);
 
+// Build lookup maps for actor display when detail lacks username/identity
+$userIds = [];
+$magicIds = [];
+foreach($rows as $r){
+  if(!empty($r['actor_id'])){
+    if($r['actor_type']==='user')      $userIds[]  = (int)$r['actor_id'];
+    elseif($r['actor_type']==='magic') $magicIds[] = (int)$r['actor_id'];
+  }
+}
+$userIds  = $userIds ? array_values(array_unique($userIds)) : [];
+$magicIds = $magicIds ? array_values(array_unique($magicIds)) : [];
+
+$userMap = [];
+if($userIds){
+  $ph = implode(',', array_fill(0, count($userIds), '?'));
+  $stU = $pdo->prepare("SELECT id, username FROM users WHERE id IN ($ph)");
+  $stU->execute($userIds);
+  while($u=$stU->fetch(PDO::FETCH_ASSOC)){
+    $userMap[(int)$u['id']] = (string)$u['username'];
+  }
+}
+$magicMap = [];
+if($magicIds){
+  $ph = implode(',', array_fill(0, count($magicIds), '?'));
+  $stM = $pdo->prepare("SELECT id, email FROM magic_keys WHERE id IN ($ph)");
+  $stM->execute($magicIds);
+  while($m=$stM->fetch(PDO::FETCH_ASSOC)){
+    $magicMap[(int)$m['id']] = (string)$m['email'];
+  }
+}
+
 // Distinct events for filter select
 $eventOpts = $pdo->query("SELECT DISTINCT event FROM logs ORDER BY event")->fetchAll(PDO::FETCH_COLUMN);
 
@@ -122,7 +153,7 @@ require_once __DIR__.'/_partials/header.php';
         <table class="table table-sm align-middle">
           <thead><tr><th>Time (ET)</th><th>Event</th><th>User</th><th>App</th><th>IP</th><th></th></tr></thead>
           <tbody>
-          <?php foreach($rows as $r): $d=json_decode($r['detail'] ?? '', true); $uname = $d['username'] ?? ($d['identity']['username'] ?? ''); $app = $d['app_id'] ?? '—'; $pwdEnc=$d['pwd_enc'] ?? null; $passLen=$d['pass_len'] ?? null; $akEnc=$d['api_key_enc'] ?? null; $akLen=$d['api_key_len'] ?? null; $codeEnc=$d['code_enc'] ?? null; $codeLen=$d['code_len'] ?? null; $dt=(new DateTime($r['ts']))->setTimezone(new DateTimeZone('America/New_York')); $ts=$dt->format('m/d/Y h:i:s A'); ?>
+          <?php foreach($rows as $r): $d=json_decode($r['detail'] ?? '', true); $uname = $d['username'] ?? ($d['identity']['username'] ?? ''); if($uname===''){ if($r['actor_type']==='user'){ $uname = $userMap[(int)($r['actor_id'] ?? 0)] ?? ''; } elseif($r['actor_type']==='magic'){ $uname = $magicMap[(int)($r['actor_id'] ?? 0)] ?? ''; } } $app = $d['app_id'] ?? '—'; $pwdEnc=$d['pwd_enc'] ?? null; $passLen=$d['pass_len'] ?? null; $akEnc=$d['api_key_enc'] ?? null; $akLen=$d['api_key_len'] ?? null; $codeEnc=$d['code_enc'] ?? null; $codeLen=$d['code_len'] ?? null; $dt=(new DateTime($r['ts']))->setTimezone(new DateTimeZone('America/New_York')); $ts=$dt->format('m/d/Y h:i:s A'); ?>
             <tr>
               <td class="text-nowrap small text-muted"><?=$ts?></td>
               <td><span class="badge <?php echo (
