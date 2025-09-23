@@ -163,7 +163,7 @@ if($ptype==='user' && !empty($identity['username'])){
   <?php if($msg): ?><div class="alert alert-success"><?=htmlspecialchars($msg)?></div><?php endif; ?>
   <?php if($err): ?><div class="alert alert-danger"><?=htmlspecialchars($err)?></div><?php endif; ?>
     <div class="col-md-7">
-      <div class="card auth-card"><div class="card-body">
+      <div class="card auth-card mb-3"><div class="card-body">
         <h2 class="h6 mb-3">Profile</h2>
         <form method="post">
           <?php csrf_field(); ?>
@@ -183,8 +183,8 @@ if($ptype==='user' && !empty($identity['username'])){
       </div></div>
       <?php if($ptype==='user'): ?>
         <?php if($allowApi): ?>
-        <div class="card auth-card"><div class="card-body">
-          <h2 class="h6 mb-2">API Keys</h2>
+      <div class="card auth-card mb-3"><div class="card-body">
+        <h2 class="h6 mb-2">API Keys</h2>
           <p class="small text-muted">Use personal API keys to authenticate to supported application APIs. Keep keys secret; they grant access as you.</p>
           <?php if($newApiKey): ?>
             <div class="alert alert-warning small"><div class="fw-semibold mb-1">Your new API key</div><code style="user-select:all; display:block; word-break:break-all;"><?=htmlspecialchars($newApiKey)?></code><div class="mt-1">Copy it now — it will not be shown again.</div></div>
@@ -232,14 +232,14 @@ if($ptype==='user' && !empty($identity['username'])){
   </div>
 
   <?php if($ptype==='user'): ?>
-  <div class="row g-4 mt-1">
+  <div class="row g-4 mt-3">
     <div class="col-md-7">
-      <div class="card auth-card"><div class="card-body">
+      <div class="card auth-card mb-3"><div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <h2 class="h6 mb-0">Recent Logins</h2>
           <span class="small text-muted">Last 50</span>
         </div>
-        <div class="list-group list-group-flush">
+        <div class="list-group list-group-flush" style="max-height: 360px; overflow:auto;">
           <?php if($recentLogins): ?>
             <?php foreach($recentLogins as $r): 
               $d = json_decode($r['detail'] ?? '', true);
@@ -265,7 +265,7 @@ if($ptype==='user' && !empty($identity['username'])){
       </div></div>
     </div>
     <div class="col-md-5">
-      <div class="card auth-card"><div class="card-body">
+      <div class="card auth-card mb-3"><div class="card-body">
         <h2 class="h6 mb-2">Applications Enabled</h2>
         <?php if(!empty($appsEnabled)): ?>
           <div class="app-tiles mt-2">
@@ -281,7 +281,7 @@ if($ptype==='user' && !empty($identity['username'])){
         <?php endif; ?>
       </div></div>
 
-      <div class="card auth-card mt-3"><div class="card-body">
+      <div class="card auth-card mb-3"><div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <h2 class="h6 mb-0">Failed Attempts</h2>
           <span class="small text-muted">Last 25</span>
@@ -303,7 +303,7 @@ if($ptype==='user' && !empty($identity['username'])){
         </div>
       </div></div>
 
-      <div class="card auth-card mt-3"><div class="card-body">
+      <div class="card auth-card mb-3"><div class="card-body">
         <h2 class="h6 mb-2">Applications Used</h2>
         <?php if($appsUsedResolved): ?>
           <?php foreach($appsUsedResolved as $aid=>$info): ?>
