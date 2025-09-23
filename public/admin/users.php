@@ -118,7 +118,7 @@ require_once __DIR__.'/_partials/header.php';
       <div class="card shadow-sm"><div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h2 class="h6 m-0">Users</h2>
-          <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#userModal" onclick="resetForm()">New User</button>
+          <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#userModal" onclick="resetForm()">New User</button>
         </div>
         <div class="table-responsive">
           <table class="table align-middle mb-0">
@@ -147,7 +147,7 @@ require_once __DIR__.'/_partials/header.php';
                     <input type="hidden" name="action" value="force_reset"/>
                     <input type="hidden" name="uid" value="<?=$u['id']?>"/>
                     <input type="hidden" name="flag" value="<?= $forced?0:1 ?>"/>
-                    <button class="btn btn-sm <?= $forced?'btn-outline-secondary':'btn-outline-warning' ?>" onclick="return confirm('Are you sure?')"><?= $forced?'Clear Requirement':'Require Change' ?></button>
+                    <button type="submit" class="btn btn-sm <?= $forced?'btn-outline-secondary':'btn-outline-warning' ?>" onclick="return confirm('Are you sure?')"><?= $forced?'Clear Requirement':'Require Change' ?></button>
                   </form>
                   <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#userModal" onclick="prefillUser(<?=htmlspecialchars(json_encode(['id'=>$u['id'],'email'=>$u['email'],'name'=>$u['name'],'username'=>$u['username'],'is_active'=>$u['is_active'],'allow_api_keys'=>$u['allow_api_keys'],'roles_csv'=>$u['roles_csv']]))?>)">Edit</button>
                   <form method="post" class="d-inline">
@@ -155,7 +155,7 @@ require_once __DIR__.'/_partials/header.php';
                     <input type="hidden" name="action" value="toggle"/>
                     <input type="hidden" name="uid" value="<?=$u['id']?>"/>
                     <input type="hidden" name="active" value="<?=$u['is_active']?0:1?>"/>
-                    <button class="btn btn-sm <?=$u['is_active']?'btn-outline-warning':'btn-outline-success'?>" onclick="return confirm('Are you sure?')"><?php echo $u['is_active']?'Disable':'Enable'; ?></button>
+                    <button type="submit" class="btn btn-sm <?=$u['is_active']?'btn-outline-warning':'btn-outline-success'?>" onclick="return confirm('Are you sure?')"><?php echo $u['is_active']?'Disable':'Enable'; ?></button>
                   </form>
                 </td>
               </tr>
@@ -251,7 +251,7 @@ function prefillUser(data){
         if(el) el.checked = true;
       });
     }).catch(()=>{});
-  try{ var modal = new bootstrap.Modal(document.getElementById('userModal')); modal.show(); }catch(e){}
+  // Modal is opened by data-bs-toggle on the triggering button
 }
 function resetForm(){
   document.getElementById('form-title').innerText='Create User';
