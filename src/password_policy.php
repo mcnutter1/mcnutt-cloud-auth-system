@@ -5,9 +5,7 @@ function password_policy(): array {
     'require_upper' => true,
     'require_lower' => true,
     'require_digit' => true,
-    'require_symbol'=> true,
-    // RFC 3986 unreserved excluded; allow common symbols
-    'symbols'       => '!@#$%^&*()_+-={}[]|:;\"\' . "<>,.?/~`"
+    'require_symbol'=> true
   ];
 }
 
@@ -33,4 +31,3 @@ function password_complexity_status(string $pwd): array {
     'min_len' => (int)$p['min_length']
   ];
 }
-
