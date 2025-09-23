@@ -98,6 +98,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 
 if($ptype==='user'){
   $st=$pdo->prepare('SELECT id,email,name,phone,username,allow_api_keys FROM users WHERE id=?'); $st->execute([$pid]); $identity=$st->fetch(PDO::FETCH_ASSOC);
+  // If current user is admin, load assigned roles for display
+  $assignedRoles = [];
+  if(!empty($_SESSION['is_admin'])){
+    $rst=$pdo->prepare('SELECT r.name FROM roles r JOIN user_roles ur ON ur.role_id=r.id WHERE ur.user_id=? ORDER BY r.name');
+    $rst->execute([$pid]);
+    $assignedRoles = array_column($rst->fetchAll(PDO::FETCH_ASSOC), 'name');
+  }
 } else {
   $st=$pdo->prepare('SELECT id,email,name,phone FROM magic_keys WHERE id=?'); $st->execute([$pid]); $identity=$st->fetch(PDO::FETCH_ASSOC); $identity['username']='(magic)';
 }
@@ -200,6 +207,16 @@ if($ptype==='user' && !empty($identity['username'])){
             <div class="form-text">Format: <code>+15551234567</code> (country code + number)</div>
           </div>
           <?php if($ptype==='user'): ?><div class="mb-2"><label class="form-label">Username</label><input class="form-control" value="<?=htmlspecialchars($identity['username'])?>" disabled></div><?php endif; ?>
+          <?php if(!empty($_SESSION['is_admin']) && $ptype==='user' && !empty($assignedRoles)): ?>
+            <div class="mb-2">
+              <label class="form-label">Assigned Roles</label>
+              <div>
+                <?php foreach($assignedRoles as $r): ?>
+                  <span class="badge rounded-pill text-bg-secondary me-1 mb-1"><?=htmlspecialchars($r)?></span>
+                <?php endforeach; ?>
+              </div>
+            </div>
+          <?php endif; ?>
           <div class="mt-3">
             <button class="btn btn-primary">Save</button>
           </div>
