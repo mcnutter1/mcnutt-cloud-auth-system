@@ -72,6 +72,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       <div class="brand brand-lg justify-content-center mb-2">
         <img class="brand-logo" src="/assets/img/mcs_logo_256.png" alt="mcnutt.cloud"/>
       </div>
+      <hr class="header-sep"/>
       <h1 class="h5 mb-3">Forgot your password?</h1>
     <?php if($msg): ?><div class="alert alert-success"><?=htmlspecialchars($msg)?></div><?php endif; ?>
     <?php if($err): ?><div class="alert alert-danger"><?=htmlspecialchars($err)?></div><?php endif; ?>

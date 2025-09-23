@@ -181,8 +181,7 @@ if($ptype==='user' && !empty($identity['username'])){
     <div class="brand">
       <img class="brand-logo" src="/assets/img/mcs_logo_256.png" alt="mcnutt.cloud logo"/>
       <div>
-        <div class="brand-sub">mcnutt.cloud</div>
-        <div class="brand-headline">secure login</div>
+        <div class="brand-sub">Account Management</div>
       </div>
     </div>
     <div class="ms-auto d-flex gap-2">

@@ -65,6 +65,7 @@ if(!$done && (int)($u['force_password_reset'] ?? 0)!==1){
       <div class="brand brand-lg justify-content-center mb-2">
         <img class="brand-logo" src="/assets/img/mcs_logo_256.png" alt="mcnutt.cloud"/>
       </div>
+      <hr class="header-sep"/>
       <h1 class="h5 mb-1">Update Password</h1>
       <p class="text-muted">You must update your password to continue.</p>
       <?php if($msg): ?><div class="alert alert-success"><?=htmlspecialchars($msg)?></div><?php endif; ?>

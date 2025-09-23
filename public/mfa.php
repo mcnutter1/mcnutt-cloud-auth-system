@@ -108,6 +108,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         <div class="brand brand-lg justify-content-center mb-2">
           <img class="brand-logo" src="/assets/img/mcs_logo_256.png" alt="mcnutt.cloud"/>
         </div>
+        <hr class="header-sep"/>
         <?php if($app): ?>
           <div class="app-context alert alert-light border d-flex align-items-center gap-2 mb-3" role="status" aria-live="polite">
             <span class="text-primary" aria-hidden="true" style="font-size:20px; line-height:1; display:inline-block; width:20px; text-align:center;">
