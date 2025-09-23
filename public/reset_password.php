@@ -3,8 +3,9 @@ require_once __DIR__.'/../src/bootstrap.php';
 require_once __DIR__.'/../src/db.php';
 require_once __DIR__.'/../src/csrf.php';
 require_once __DIR__.'/../src/logger.php';
+require_once __DIR__.'/../src/password_policy.php';
 
-$pdo=db(); $msg=null; $err=null;
+$pdo=db(); $msg=null; $err=null; $done=false; $policy=password_policy();
 $token = $_GET['token'] ?? '';
 $reset = null;
 if($token){
@@ -22,7 +23,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $err='Invalid or expired token.'; $reset=null;
   } else {
     $pwd = $_POST['password'] ?? ''; $confirm = $_POST['confirm'] ?? '';
+    $stt = password_complexity_status($pwd);
     if($pwd==='' || $pwd!==$confirm){ $err='Passwords do not match.'; }
+    elseif(!$stt['ok']){ $err='Password does not meet complexity requirements.'; }
     else {
       $pdo->beginTransaction();
       try{
@@ -32,7 +35,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $pdo->prepare("UPDATE sessions SET revoked_at=NOW() WHERE user_type='user' AND user_id=? AND revoked_at IS NULL")->execute([(int)$reset['user_id']]);
         $pdo->commit();
         log_event($pdo,'user',(int)$reset['user_id'],'password.reset.complete');
-        $msg='Your password has been updated. You can now sign in.'; $reset=null;
+        $msg='Your password has been updated.'; $done=true; $reset=null;
       }catch(Throwable $e){ $pdo->rollBack(); $err='Unable to reset password.'; }
     }
   }
@@ -60,14 +63,27 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       <h1 class="h5 mb-3">Reset Password</h1>
     <?php if($msg): ?><div class="alert alert-success"><?=htmlspecialchars($msg)?></div><?php endif; ?>
     <?php if($err): ?><div class="alert alert-danger"><?=htmlspecialchars($err)?></div><?php endif; ?>
-    <?php if($reset): ?>
+    <?php if($done): ?>
+      <div class="alert alert-success">Your password has been updated.</div>
+      <a class="btn btn-primary" href="/">Back to Sign-in</a>
+    <?php elseif($reset): ?>
       <form method="post">
         <?php csrf_field(); ?>
         <input type="hidden" name="token" value="<?=htmlspecialchars($token)?>" />
-        <div class="mb-2"><label class="form-label">New Password</label><input class="form-control" type="password" name="password" required></div>
+        <div class="mb-2"><label class="form-label">New Password</label><input class="form-control" type="password" name="password" id="pw1" required autocomplete="new-password"></div>
         <div class="mb-3"><label class="form-label">Confirm Password</label><input class="form-control" type="password" name="confirm" required></div>
-        <div class="d-flex gap-2">
-          <button class="btn btn-primary">Update Password</button>
+        <div class="mb-3">
+          <div class="small text-muted mb-1">Your password must include:</div>
+          <ul class="list-unstyled small mb-0" id="pw-policy">
+            <li id="p-len"    class="text-muted">☐ At least <?=$policy['min_length']?> characters</li>
+            <li id="p-upper"  class="text-muted">☐ An uppercase letter (A-Z)</li>
+            <li id="p-lower"  class="text-muted">☐ A lowercase letter (a-z)</li>
+            <li id="p-digit"  class="text-muted">☐ A number (0-9)</li>
+            <li id="p-symbol" class="text-muted">☐ A symbol (e.g., ! @ # $ %)</li>
+          </ul>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <button class="btn btn-primary" id="pw-submit">Update Password</button>
           <a class="btn btn-outline-secondary" href="/">Back to sign in</a>
         </div>
       </form>
@@ -78,4 +94,32 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     </div></div>
   </div>
 </div>
+<script>
+(function(){
+  var pw = document.getElementById('pw1');
+  if(!pw) return;
+  var submit = document.getElementById('pw-submit');
+  var items = {
+    len: document.getElementById('p-len'),
+    upper: document.getElementById('p-upper'),
+    lower: document.getElementById('p-lower'),
+    digit: document.getElementById('p-digit'),
+    symbol: document.getElementById('p-symbol')
+  };
+  var minLen = <?=$policy['min_length']?>;
+  function setItem(el, ok){ if(!el) return; el.className = ok ? 'text-success' : 'text-muted'; el.textContent = (ok?'☑ ':'☐ ')+el.textContent.replace(/^([☑☐]\s*)?/,''); }
+  function check(){
+    var v = pw.value || '';
+    var okLen = v.length >= minLen;
+    var okUpper = /[A-Z]/.test(v);
+    var okLower = /[a-z]/.test(v);
+    var okDigit = /\d/.test(v);
+    var okSym   = /[^A-Za-z0-9]/.test(v);
+    setItem(items.len, okLen); setItem(items.upper, okUpper); setItem(items.lower, okLower); setItem(items.digit, okDigit); setItem(items.symbol, okSym);
+    if(submit){ submit.disabled = !(okLen && okUpper && okLower && okDigit && okSym); }
+  }
+  pw.addEventListener('input', check);
+  check();
+})();
+</script>
 </body></html>

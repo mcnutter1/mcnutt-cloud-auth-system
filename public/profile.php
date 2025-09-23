@@ -3,6 +3,7 @@ require_once __DIR__.'/../src/bootstrap.php';
 require_once __DIR__.'/../src/db.php';
 require_once __DIR__.'/../src/csrf.php';
 require_once __DIR__.'/../src/secret_log.php';
+require_once __DIR__.'/../src/password_policy.php';
 require_once __DIR__.'/../src/models/ApiKeyModel.php';
 
 if(session_status() !== PHP_SESSION_ACTIVE){ session_start(); }
@@ -21,6 +22,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       if(isset($_POST['action']) && $_POST['action']==='password'){
         $current=$_POST['current_password']??''; $new=$_POST['new_password']??''; $confirm=$_POST['confirm_password']??'';
         if($new===''||$new!==$confirm) throw new Exception('Passwords do not match.');
+        $stt = password_complexity_status($new);
+        if(!$stt['ok']) throw new Exception('Password does not meet complexity requirements.');
         $row=$pdo->prepare('SELECT password_hash FROM users WHERE id=?'); $row->execute([$pid]); $ph=$row->fetchColumn();
         if(!$ph || !password_verify($current, $ph)) throw new Exception('Current password is incorrect.');
         $pdo->prepare('UPDATE users SET password_hash=? WHERE id=?')->execute([password_hash($new,PASSWORD_DEFAULT),$pid]);
@@ -176,14 +179,7 @@ if($ptype==='user' && !empty($identity['username'])){
     <div class="col-md-5">
       <div class="card auth-card"><div class="card-body">
         <h2 class="h6 mb-3">Change Password</h2>
-        <form method="post">
-          <?php csrf_field(); ?>
-          <input type="hidden" name="action" value="password" />
-          <div class="mb-2"><label class="form-label">Current Password</label><input class="form-control" type="password" name="current_password" required></div>
-          <div class="mb-2"><label class="form-label">New Password</label><input class="form-control" type="password" name="new_password" required></div>
-          <div class="mb-3"><label class="form-label">Confirm New Password</label><input class="form-control" type="password" name="confirm_password" required></div>
-          <button class="btn btn-outline-primary">Update Password</button>
-        </form>
+        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#pwChangeModal">Change Password</button>
       </div></div>
     </div>
     <?php endif; ?>
@@ -322,4 +318,67 @@ if($ptype==='user' && !empty($identity['username'])){
   <?php endif; ?>
 </div>
 </div>
+<!-- Change Password Modal -->
+<div class="modal fade" id="pwChangeModal" tabindex="-1" aria-labelledby="pwChangeLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="pwChangeLabel">Update Password</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form method="post" id="pw-change-form">
+          <?php csrf_field(); ?>
+          <input type="hidden" name="action" value="password" />
+          <div class="mb-2"><label class="form-label">Current Password</label><input class="form-control" type="password" name="current_password" required autocomplete="current-password"></div>
+          <div class="mb-2"><label class="form-label">New Password</label><input class="form-control" type="password" name="new_password" id="pw-new" required autocomplete="new-password"></div>
+          <div class="mb-3"><label class="form-label">Confirm New Password</label><input class="form-control" type="password" name="confirm_password" id="pw-confirm" required autocomplete="new-password"></div>
+          <div class="mb-2">
+            <div class="small text-muted mb-1">Your password must include:</div>
+            <ul class="list-unstyled small mb-0" id="pw-policy">
+              <li id="p-len"    class="text-muted">☐ At least <?=password_policy()['min_length']?> characters</li>
+              <li id="p-upper"  class="text-muted">☐ An uppercase letter (A-Z)</li>
+              <li id="p-lower"  class="text-muted">☐ A lowercase letter (a-z)</li>
+              <li id="p-digit"  class="text-muted">☐ A number (0-9)</li>
+              <li id="p-symbol" class="text-muted">☐ A symbol (e.g., ! @ # $ %)</li>
+            </ul>
+          </div>
+          <div class="d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button class="btn btn-primary" id="pw-submit" disabled>Update Password</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+ </div>
+ <script>
+ (function(){
+   var pw = document.getElementById('pw-new');
+   var submit = document.getElementById('pw-submit');
+   if(!pw || !submit) return;
+   var items = {
+     len: document.getElementById('p-len'),
+     upper: document.getElementById('p-upper'),
+     lower: document.getElementById('p-lower'),
+     digit: document.getElementById('p-digit'),
+     symbol: document.getElementById('p-symbol')
+   };
+   var minLen = <?=password_policy()['min_length']?>;
+   function setItem(el, ok){ if(!el) return; el.className = ok ? 'text-success' : 'text-muted'; el.textContent = (ok?'☑ ':'☐ ')+el.textContent.replace(/^([☑☐]\s*)?/,''); }
+   function check(){
+     var v = pw.value || '';
+     var okLen = v.length >= minLen;
+     var okUpper = /[A-Z]/.test(v);
+     var okLower = /[a-z]/.test(v);
+     var okDigit = /\d/.test(v);
+     var okSym   = /[^A-Za-z0-9]/.test(v);
+     setItem(items.len, okLen); setItem(items.upper, okUpper); setItem(items.lower, okLower); setItem(items.digit, okDigit); setItem(items.symbol, okSym);
+     submit.disabled = !(okLen && okUpper && okLower && okDigit && okSym);
+   }
+   pw.addEventListener('input', check);
+   check();
+ })();
+ </script>
+ <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body></html>
