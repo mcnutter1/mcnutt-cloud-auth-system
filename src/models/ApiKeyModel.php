@@ -55,5 +55,18 @@ class ApiKeyModel {
     }
     return null;
   }
-}
 
+  // Best-effort lookup of owning user by API key prefix.
+  // Useful for linking failed auth attempts to a user when the key is invalid or revoked.
+  public function findUserIdByRawKey(string $rawKey): ?int {
+    if(!is_string($rawKey) || strlen($rawKey) < 10) return null;
+    if(strncmp($rawKey, 'mcak_', 5) !== 0) return null;
+    $body = substr($rawKey, 5);
+    if(strlen($body) < 12) return null;
+    $prefix = substr($body, 0, 8);
+    $st = $this->pdo->prepare('SELECT user_id FROM api_keys WHERE key_prefix=? ORDER BY id DESC LIMIT 1');
+    $st->execute([$prefix]);
+    $uid = $st->fetchColumn();
+    return $uid !== false ? (int)$uid : null;
+  }
+}

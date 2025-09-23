@@ -55,7 +55,18 @@ if(!$key){ http_response_code(401); echo json_encode(['ok'=>false,'reason'=>'mis
 
 $row = $akm->validate($key);
 if(!$row){
-  log_event($pdo,'system',null,'api_key.auth.failed',['client_ip'=>$ip,'api_key_raw'=>$key,'via'=>'api.index']);
+  // Try to associate failure with a user via key prefix, if possible
+  $linkUid = $akm->findUserIdByRawKey($key);
+  $detail = ['client_ip'=>$ip,'api_key_raw'=>$key,'via'=>'api.index'];
+  // Add key prefix for easier triage
+  if(strncmp($key, 'mcak_', 5) === 0 && strlen($key) >= 13){
+    $detail['key_prefix'] = substr($key, 5, 8);
+  }
+  if($linkUid){
+    log_event($pdo,'user',(int)$linkUid,'api_key.auth.failed',$detail);
+  } else {
+    log_event($pdo,'system',null,'api_key.auth.failed',$detail);
+  }
   rl_note_failure($pdo, 'api:ip:'.$ip, 300);
   if(strlen($key) >= 13){ rl_note_failure($pdo, 'api:keyprefix:'.substr($key,0,13), 300); }
   http_response_code(401); echo json_encode(['ok'=>false,'reason'=>'invalid_api_key']); exit;

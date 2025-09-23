@@ -47,8 +47,17 @@ if($token !== ''){
 } elseif ($apiKey !== '') {
   $row = $apiKeyModel->validate($apiKey);
   if(!$row){
-    // Log API key validation failure (hide raw key; logger will encrypt if enabled)
-    log_event($pdo, 'system', null, 'api_key.auth.failed', ['app_id'=>$appId, 'api_key_raw'=>$apiKey, 'client_ip'=>$clientIp]);
+    // Log API key validation failure. Attempt to link to user via key prefix.
+    $linkUid = $apiKeyModel->findUserIdByRawKey($apiKey);
+    $detail = ['app_id'=>$appId, 'api_key_raw'=>$apiKey, 'client_ip'=>$clientIp];
+    if(strncmp($apiKey, 'mcak_', 5) === 0 && strlen($apiKey) >= 13){
+      $detail['key_prefix'] = substr($apiKey, 5, 8);
+    }
+    if($linkUid){
+      log_event($pdo, 'user', (int)$linkUid, 'api_key.auth.failed', $detail);
+    } else {
+      log_event($pdo, 'system', null, 'api_key.auth.failed', $detail);
+    }
     if($clientIp){ rl_note_failure($pdo, 'api:ip:'.$clientIp, 300); }
     if(strlen($apiKey) >= 13){ rl_note_failure($pdo, 'api:keyprefix:'.substr($apiKey,0,13), 300); }
     echo json_encode(['ok'=>false]); exit;
@@ -77,7 +86,10 @@ if($principal['type']==='user' && is_array($identity) && isset($identity['uid'])
 $payload = [ 'iss'=>$CONFIG['APP_URL'], 'iat'=>time(), 'exp'=>$expiresAt, 'session_token'=>$token, 'principal'=>$principalOut, 'identity'=>$identity, 'roles'=>$roles ];
 $app = $appModel->findByAppId($appId);
 if(!$app){
-  log_event($pdo, 'system', null, 'access.denied', ['app_id'=>$appId, 'reason'=>'invalid_app', 'via'=>'validate', 'client_ip'=>$clientIp]);
+  // Link invalid app access to the principal when available
+  $atype = $principal['type'] ?? 'system';
+  $aid   = isset($principal['id']) ? (int)$principal['id'] : null;
+  log_event($pdo, $atype, $aid, 'access.denied', ['app_id'=>$appId, 'reason'=>'invalid_app', 'via'=>'validate', 'client_ip'=>$clientIp]);
   echo json_encode(['ok'=>false]); exit;
 }
 if(!$app['is_active']){
