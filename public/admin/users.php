@@ -114,8 +114,12 @@ require_once __DIR__.'/_partials/header.php';
   <?php if($msg): ?><div class="alert alert-success"><?=htmlspecialchars($msg)?></div><?php endif; ?>
   <?php if($err): ?><div class="alert alert-danger"><?=htmlspecialchars($err)?></div><?php endif; ?>
   <div class="row g-4">
-    <div class="col-lg-7">
+    <div class="col-12">
       <div class="card shadow-sm"><div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 m-0">Users</h2>
+          <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#userModal" onclick="resetForm()">New User</button>
+        </div>
         <div class="table-responsive">
           <table class="table align-middle mb-0">
             <thead><tr><th>ID</th><th>User</th><th>Username</th><th>Roles</th><th>Status</th><th>API Keys</th><th>Pwd Changed</th><th>Force Reset</th><th></th></tr></thead>
@@ -145,7 +149,7 @@ require_once __DIR__.'/_partials/header.php';
                     <input type="hidden" name="flag" value="<?= $forced?0:1 ?>"/>
                     <button class="btn btn-sm <?= $forced?'btn-outline-secondary':'btn-outline-warning' ?>" onclick="return confirm('Are you sure?')"><?= $forced?'Clear Requirement':'Require Change' ?></button>
                   </form>
-                  <button class="btn btn-sm btn-outline-primary" type="button" onclick="prefillUser(<?=htmlspecialchars(json_encode(['id'=>$u['id'],'email'=>$u['email'],'name'=>$u['name'],'username'=>$u['username'],'is_active'=>$u['is_active'],'allow_api_keys'=>$u['allow_api_keys'],'roles_csv'=>$u['roles_csv']]))?>)">Edit</button>
+                  <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#userModal" onclick="prefillUser(<?=htmlspecialchars(json_encode(['id'=>$u['id'],'email'=>$u['email'],'name'=>$u['name'],'username'=>$u['username'],'is_active'=>$u['is_active'],'allow_api_keys'=>$u['allow_api_keys'],'roles_csv'=>$u['roles_csv']]))?>)">Edit</button>
                   <form method="post" class="d-inline">
                     <?php csrf_field(); ?>
                     <input type="hidden" name="action" value="toggle"/>
@@ -161,19 +165,33 @@ require_once __DIR__.'/_partials/header.php';
         </div>
       </div></div>
     </div>
-    <div class="col-lg-5">
-      <div class="card shadow-sm"><div class="card-body">
-        <h2 class="h6 mb-3" id="form-title">Create User</h2>
+  </div>
+</div>
+<!-- User Create/Edit Modal -->
+<div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="userModalLabel"><span id="form-title">Create User</span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
         <form method="post" autocomplete="off" id="user-form">
           <?php csrf_field(); ?>
           <input type="hidden" name="id" id="f-id" value=""/>
-          <div class="mb-2"><label class="form-label">Email</label><input name="email" id="f-email" type="email" class="form-control" required/></div>
-          <div class="mb-2"><label class="form-label">Name</label><input name="name" id="f-name" class="form-control" required/></div>
-          <div class="mb-2"><label class="form-label">Username</label><input name="username" id="f-username" class="form-control" required/></div>
-          <div class="mb-2"><label class="form-label">Password <span class="text-muted small" id="pwd-hint">(required)</span></label><input name="password" id="f-password" type="password" class="form-control"/></div>
-          <div class="mb-3 form-check"><input class="form-check-input" type="checkbox" name="is_active" id="f-active" checked/><label class="form-check-label" for="f-active">Active</label></div>
-          <div class="mb-3 form-check"><input class="form-check-input" type="checkbox" name="allow_api_keys" id="f-api-keys"/><label class="form-check-label" for="f-api-keys">Allow API Keys</label></div>
-          <div class="mb-3">
+          <div class="row g-2">
+            <div class="col-md-6"><label class="form-label">Email</label><input name="email" id="f-email" type="email" class="form-control" required/></div>
+            <div class="col-md-6"><label class="form-label">Name</label><input name="name" id="f-name" class="form-control" required/></div>
+          </div>
+          <div class="row g-2 mt-1">
+            <div class="col-md-6"><label class="form-label">Username</label><input name="username" id="f-username" class="form-control" required/></div>
+            <div class="col-md-6"><label class="form-label">Password <span class="text-muted small" id="pwd-hint">(required)</span></label><input name="password" id="f-password" type="password" class="form-control"/></div>
+          </div>
+          <div class="row g-2 mt-2">
+            <div class="col-md-4 form-check"><input class="form-check-input" type="checkbox" name="is_active" id="f-active" checked/><label class="form-check-label" for="f-active">Active</label></div>
+            <div class="col-md-4 form-check"><input class="form-check-input" type="checkbox" name="allow_api_keys" id="f-api-keys"/><label class="form-check-label" for="f-api-keys">Allow API Keys</label></div>
+          </div>
+          <div class="mt-3">
             <div class="form-label">Roles</div>
             <?php foreach($roles as $r): ?>
               <div class="form-check form-check-inline">
@@ -182,7 +200,7 @@ require_once __DIR__.'/_partials/header.php';
               </div>
             <?php endforeach; ?>
           </div>
-          <div class="mb-3">
+          <div class="mt-3">
             <div class="form-label">Applications</div>
             <?php foreach($apps as $a): ?>
               <div class="form-check form-check-inline">
@@ -192,14 +210,15 @@ require_once __DIR__.'/_partials/header.php';
             <?php endforeach; ?>
             <div class="form-text">No apps selected = no access (deny by default).</div>
           </div>
-          <div class="d-flex gap-2">
-            <button class="btn btn-primary">Save</button>
-            <button class="btn btn-secondary" type="button" onclick="resetForm()">Reset</button>
-          </div>
         </form>
-      </div></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        <button class="btn btn-primary" form="user-form">Save</button>
+      </div>
     </div>
   </div>
+  
 </div>
 <script>
 function prefillUser(data){
@@ -232,6 +251,7 @@ function prefillUser(data){
         if(el) el.checked = true;
       });
     }).catch(()=>{});
+  try{ var modal = new bootstrap.Modal(document.getElementById('userModal')); modal.show(); }catch(e){}
 }
 function resetForm(){
   document.getElementById('form-title').innerText='Create User';
