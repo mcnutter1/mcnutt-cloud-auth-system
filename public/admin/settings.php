@@ -160,10 +160,10 @@ require_once __DIR__.'/_partials/header.php';
           </tbody>
         </table>
       </div>
-      <div class="row g-2 align-items-center">
+      <div class="row g-2 align-items-end">
         <div class="col-md-4">
           <input class="form-control form-control-sm font-monospace" name="new_ip" placeholder="Add IP (e.g., 203.0.113.5)">
-          <div class="invalid-feedback d-block" id="new-ip-feedback" style="display:none;">Enter a valid IPv4 or IPv6 address.</div>
+          <div class="invalid-feedback d-block mb-0" id="new-ip-feedback" style="display:none;">Enter a valid IPv4 or IPv6 address.</div>
         </div>
         <div class="col-md-3">
           <div class="select-with-caret">
