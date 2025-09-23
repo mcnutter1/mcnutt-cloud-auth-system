@@ -127,10 +127,10 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         <h1 class="h5 mb-3">Verify your identity</h1>
         <p class="text-muted small">Choose how to receive your verification code and enter it below to continue.</p>
 
-        <?php if($message): ?><div class="alert alert-info d-flex justify-content-between align-items-center" role="status">
+        <?php if($message): ?><div class="alert alert-info d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2" role="status">
           <div><?=htmlspecialchars($message)?></div>
           <?php if($sentOk): ?>
-            <div class="small text-nowrap"><span class="text-muted">Expires in</span> <strong id="mfa-countdown">10:00</strong></div>
+            <div class="small text-nowrap ms-sm-3"><span class="text-muted">Expires in</span> <strong id="mfa-countdown">10:00</strong></div>
           <?php endif; ?>
         </div><?php endif; ?>
         <?php if($error): ?><div class="alert alert-danger" role="alert"><?=htmlspecialchars($error)?></div><?php endif; ?>

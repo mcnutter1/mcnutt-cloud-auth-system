@@ -41,6 +41,10 @@
       const nu = document.getElementById('f-user');
       if(nu){ try{ nu.focus(); }catch(e){} }
       if(remember) remember.checked = false;
+
+      // Reveal sign-in method selector if it was hidden for remembered user
+      const modeGroup = document.getElementById('login-mode-group');
+      if(modeGroup){ modeGroup.style.display = ''; }
     });
   }
 })();

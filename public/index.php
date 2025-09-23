@@ -388,7 +388,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     <?php if($error): ?><div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
     <form method="post" autocomplete="off" id="login-form">
       <?php csrf_field(); ?>
-      <div class="mb-3">
+      <div class="mb-3" id="login-mode-group" <?php if($remembered): ?>style="display:none"<?php endif; ?>>
         <label class="form-label small text-muted">Sign-in method</label>
         <div class="select-with-caret">
           <select class="form-select" id="f-mode" name="mode">
