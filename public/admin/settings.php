@@ -119,16 +119,27 @@ require_once __DIR__.'/_partials/header.php';
         <div class="col-md-3 form-check"><input class="form-check-input" type="checkbox" name="TRUSTED_IPS_AUTO" id="f-trusted-auto" <?=(int)($vals['TRUSTED_IPS_AUTO'] ?? '1')? 'checked':''?>/><label class="form-check-label" for="f-trusted-auto">Auto‑populate</label></div>
         <div class="col-md-3"><label class="form-label">Auto Threshold</label><input class="form-control" type="number" min="1" max="1000" name="TRUSTED_IPS_THRESHOLD" value="<?=htmlspecialchars($vals['TRUSTED_IPS_THRESHOLD'] ?? '5')?>"/></div>
       </div>
+      <?php $thrVal = (int)($vals['TRUSTED_IPS_THRESHOLD'] ?? '5'); ?>
       <div class="table-responsive mb-3">
-        <table class="table table-sm align-middle">
-          <thead><tr><th style="width:220px;">IP</th><th style="width:140px;">Status</th><th style="width:160px;">Success (180d)</th><th></th></tr></thead>
+        <table class="table table-sm align-middle" id="ip-table" data-threshold="<?=$thrVal?>">
+          <thead>
+            <tr>
+              <th style="width:220px; cursor:pointer;" id="th-ip">IP <span class="material-symbols-rounded align-middle" style="font-size:18px; vertical-align:baseline;" id="ip-sort-icon">unfold_more</span></th>
+              <th style="width:160px; cursor:pointer;" id="th-status">Status <span class="material-symbols-rounded align-middle" style="font-size:18px; vertical-align:baseline;" id="status-sort-icon">unfold_more</span></th>
+              <th style="width:160px; cursor:pointer;" id="th-success">Success (180d) <span class="material-symbols-rounded align-middle" style="font-size:18px; vertical-align:baseline;" id="success-sort-icon">unfold_more</span></th>
+              <th></th>
+            </tr>
+          </thead>
           <tbody id="ip-rows">
             <?php if(!$ipUnion): ?>
               <tr class="text-muted"><td colspan="4">No IPs configured.</td></tr>
             <?php else: ?>
-              <?php foreach($ipUnion as $idx=>$ip): $isT = in_array($ip, $trustedList, true); $isB = in_array($ip, $blockedList, true); $state = $isB ? 'blocked' : ($isT ? 'trusted' : 'none'); ?>
-              <tr>
-                <td><input type="text" class="form-control form-control-sm font-monospace" name="ip_row[]" value="<?=htmlspecialchars($ip)?>"></td>
+              <?php foreach($ipUnion as $idx=>$ip): $isT = in_array($ip, $trustedList, true); $isB = in_array($ip, $blockedList, true); $state = $isB ? 'blocked' : ($isT ? 'trusted' : 'none'); $cnt=(int)($counts[$ip] ?? 0); $badgeClass = ($cnt >= $thrVal ? 'text-bg-success' : 'bg-secondary-subtle text-dark'); ?>
+              <tr data-count="<?=$cnt?>">
+                <td>
+                  <input type="text" class="form-control form-control-sm font-monospace ip-input" name="ip_row[]" value="<?=htmlspecialchars($ip)?>" aria-label="IP address">
+                  <div class="invalid-feedback">Enter a valid IPv4 or IPv6 address.</div>
+                </td>
                 <td>
                   <div class="select-with-caret">
                     <select class="form-select form-select-sm" name="state_row[]">
@@ -139,7 +150,7 @@ require_once __DIR__.'/_partials/header.php';
                     <span class="material-symbols-rounded select-caret" aria-hidden="true">expand_more</span>
                   </div>
                 </td>
-                <td><span class="badge bg-secondary-subtle text-dark"><?= (int)($counts[$ip] ?? 0) ?></span></td>
+                <td><span class="badge <?=$badgeClass?>"><?=$cnt?></span></td>
                 <td class="text-end">
                   <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)" aria-label="Remove row">Remove</button>
                 </td>
@@ -150,7 +161,10 @@ require_once __DIR__.'/_partials/header.php';
         </table>
       </div>
       <div class="row g-2 align-items-center">
-        <div class="col-md-4"><input class="form-control form-control-sm font-monospace" name="new_ip" placeholder="Add IP (e.g., 203.0.113.5)"></div>
+        <div class="col-md-4">
+          <input class="form-control form-control-sm font-monospace" name="new_ip" placeholder="Add IP (e.g., 203.0.113.5)">
+          <div class="invalid-feedback d-block" id="new-ip-feedback" style="display:none;">Enter a valid IPv4 or IPv6 address.</div>
+        </div>
         <div class="col-md-3">
           <div class="select-with-caret">
             <select class="form-select form-select-sm" name="new_state">
@@ -174,9 +188,14 @@ require_once __DIR__.'/_partials/header.php';
         var ip = document.querySelector('input[name="new_ip"]').value.trim();
         var state = document.querySelector('select[name="new_state"]').value;
         if(!ip) return;
+        if(!isValidIP(ip)){
+          showNewIpInvalid(true);
+          return;
+        }
         var tbody = document.getElementById('ip-rows');
         var tr = document.createElement('tr');
-        tr.innerHTML = '<td><input type="text" class="form-control form-control-sm font-monospace" name="ip_row[]" value="'+escapeHtml(ip)+'"></td>'+
+        tr.setAttribute('data-count', '0');
+        tr.innerHTML = '<td><input type="text" class="form-control form-control-sm font-monospace ip-input" name="ip_row[]" value="'+escapeHtml(ip)+'" aria-label="IP address"><div class="invalid-feedback">Enter a valid IPv4 or IPv6 address.</div></td>'+
                        '<td><div class="select-with-caret"><select class="form-select form-select-sm" name="state_row[]">'+
                        '<option value="trusted"'+(state==='trusted'?' selected':'')+'>Trusted</option>'+
                        '<option value="blocked"'+(state==='blocked'?' selected':'')+'>Never trust</option>'+
@@ -186,8 +205,118 @@ require_once __DIR__.'/_partials/header.php';
                        '<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)">Remove</button></td>';
         tbody.appendChild(tr);
         document.querySelector('input[name="new_ip"]').value='';
+        showNewIpInvalid(false);
+        attachIpValidation(tr.querySelector('.ip-input'));
       }
       function escapeHtml(s){ return s.replace(/[&<>\"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]; }); }
+      function isValidIPv4(ip){
+        return /^((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)$/.test(ip);
+      }
+      function isValidIPv6(ip){
+        // Basic IPv6 validation supporting :: compression and 1-8 hextets
+        if(!ip.includes(':')) return false;
+        if(ip.split('::').length > 2) return false; // at most one '::'
+        var parts = ip.split('::');
+        var left = parts[0] ? parts[0].split(':') : [];
+        var right = parts[1] ? parts[1].split(':') : [];
+        function validHextet(h){ return /^[0-9a-fA-F]{1,4}$/.test(h); }
+        if(parts.length === 1){
+          if(left.length !== 8) return false;
+          return left.every(validHextet);
+        } else {
+          if(left.length + right.length > 7) return false; // '::' represents at least one group
+          if(left.some(h=>h!=='' && !validHextet(h))) return false;
+          if(right.some(h=>h!=='' && !validHextet(h))) return false;
+          return true;
+        }
+      }
+      function isValidIP(ip){ return isValidIPv4(ip) || isValidIPv6(ip); }
+      function attachIpValidation(input){
+        if(!input) return;
+        input.addEventListener('input', function(){
+          if(input.value.trim()===''){ input.classList.remove('is-invalid'); return; }
+          if(isValidIP(input.value.trim())){ input.classList.remove('is-invalid'); }
+          else { input.classList.add('is-invalid'); }
+        });
+      }
+      function validateAllIps(){
+        var ok = true; var inputs = document.querySelectorAll('#ip-rows .ip-input');
+        inputs.forEach(function(inp){
+          var v = inp.value.trim();
+          if(v!=='' && !isValidIP(v)) { inp.classList.add('is-invalid'); ok=false; }
+        });
+        return ok;
+      }
+      function showNewIpInvalid(flag){
+        var el = document.getElementById('new-ip-feedback');
+        if(!el) return;
+        el.style.display = flag ? 'block' : 'none';
+        var inp = document.querySelector('input[name="new_ip"]');
+        if(inp){ if(flag) inp.classList.add('is-invalid'); else inp.classList.remove('is-invalid'); }
+      }
+      // Attach validation to existing inputs and intercept form submit
+      document.querySelectorAll('#ip-rows .ip-input').forEach(attachIpValidation);
+      document.querySelector('form')?.addEventListener('submit', function(e){ if(!validateAllIps()){ e.preventDefault(); e.stopPropagation(); } });
+      // Sorting: generic helper
+      (function(){
+        var tbody = document.getElementById('ip-rows');
+        var iconIp = document.getElementById('ip-sort-icon');
+        var iconStatus = document.getElementById('status-sort-icon');
+        var iconSuccess = document.getElementById('success-sort-icon');
+        var sortState = { key: null, asc: null };
+        function resetIcons(){
+          if(iconIp) iconIp.textContent='unfold_more';
+          if(iconStatus) iconStatus.textContent='unfold_more';
+          if(iconSuccess) iconSuccess.textContent='unfold_more';
+        }
+        function applySort(compare){
+          var rows = Array.from(tbody.querySelectorAll('tr')).filter(function(r){ return r.hasAttribute('data-count'); });
+          rows.sort(compare);
+          rows.forEach(function(r){ tbody.appendChild(r); });
+        }
+        // Sort by Success count
+        var thSuccess = document.getElementById('th-success');
+        if(thSuccess){
+          thSuccess.addEventListener('click', function(){
+            sortState.asc = (sortState.key==='success') ? !sortState.asc : false; // default desc
+            sortState.key = 'success';
+            resetIcons(); if(iconSuccess) iconSuccess.textContent = sortState.asc ? 'expand_less' : 'expand_more';
+            applySort(function(a,b){ var ca=parseInt(a.getAttribute('data-count')||'0',10); var cb=parseInt(b.getAttribute('data-count')||'0',10); return sortState.asc ? (ca-cb) : (cb-ca); });
+          });
+        }
+        // Sort by IP string
+        var thIp = document.getElementById('th-ip');
+        if(thIp){
+          thIp.addEventListener('click', function(){
+            sortState.asc = (sortState.key==='ip') ? !sortState.asc : true; // default asc
+            sortState.key = 'ip';
+            resetIcons(); if(iconIp) iconIp.textContent = sortState.asc ? 'expand_less' : 'expand_more';
+            applySort(function(a,b){
+              var ia = a.querySelector('input[name="ip_row[]"]');
+              var ib = b.querySelector('input[name="ip_row[]"]');
+              var sa = (ia?ia.value:'').toLowerCase();
+              var sb = (ib?ib.value:'').toLowerCase();
+              if(sa<sb) return sortState.asc?-1:1; if(sa>sb) return sortState.asc?1:-1; return 0;
+            });
+          });
+        }
+        // Sort by Status value with custom order
+        var order = { trusted:0, blocked:1, none:2 };
+        var thStatus = document.getElementById('th-status');
+        if(thStatus){
+          thStatus.addEventListener('click', function(){
+            sortState.asc = (sortState.key==='status') ? !sortState.asc : true; // default asc (Trusted -> ...)
+            sortState.key = 'status';
+            resetIcons(); if(iconStatus) iconStatus.textContent = sortState.asc ? 'expand_less' : 'expand_more';
+            applySort(function(a,b){
+              var sa = a.querySelector('select[name="state_row[]"]')?.value || 'none';
+              var sb = b.querySelector('select[name="state_row[]"]')?.value || 'none';
+              var oa = order[sa] ?? 3; var ob = order[sb] ?? 3;
+              return sortState.asc ? (oa-ob) : (ob-oa);
+            });
+          });
+        }
+      })();
       </script>
     </div></div>
 
