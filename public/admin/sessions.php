@@ -9,27 +9,41 @@ require_admin();
 $pdo = db();
 $msg=null; $err=null;
 
-// Revoke (kill) a session
-if($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['action'] ?? '')==='kill'){
+// Revoke (kill) a session or all sessions for a principal
+if($_SERVER['REQUEST_METHOD']==='POST' && in_array(($_POST['action'] ?? ''), ['kill','kill_all'], true)){
   csrf_validate();
   try{
-    $sid = (int)($_POST['id'] ?? 0);
-    if($sid<=0) throw new Exception('Invalid session id.');
-    // Fetch before update for logging
-    $st = $pdo->prepare('SELECT * FROM sessions WHERE id=? LIMIT 1');
-    $st->execute([$sid]);
-    $sess = $st->fetch(PDO::FETCH_ASSOC);
-    if(!$sess) throw new Exception('Session not found.');
-    if($sess['revoked_at'] !== null){ $msg='Session already revoked.'; }
-    else {
-      $pdo->prepare('UPDATE sessions SET revoked_at=NOW() WHERE id=?')->execute([$sid]);
-      $msg='Session revoked.';
+    if(($_POST['action'] ?? '') === 'kill'){
+      $sid = (int)($_POST['id'] ?? 0);
+      if($sid<=0) throw new Exception('Invalid session id.');
+      // Fetch before update for logging
+      $st = $pdo->prepare('SELECT * FROM sessions WHERE id=? LIMIT 1');
+      $st->execute([$sid]);
+      $sess = $st->fetch(PDO::FETCH_ASSOC);
+      if(!$sess) throw new Exception('Session not found.');
+      if($sess['revoked_at'] !== null){ $msg='Session already revoked.'; }
+      else {
+        $pdo->prepare('UPDATE sessions SET revoked_at=NOW() WHERE id=?')->execute([$sid]);
+        $msg='Session revoked.';
+        $actorId = (int)($_SESSION['pid'] ?? 0);
+        log_event($pdo, 'user', $actorId, 'admin.session.revoke', [
+          'session_id'=>$sid,
+          'user_type'=>$sess['user_type'],
+          'user_id'=>(int)$sess['user_id'],
+          'reason'=>'admin_kill'
+        ]);
+      }
+    } else { // kill_all
+      $uType = $_POST['user_type'] ?? '';
+      $uId   = (int)($_POST['user_id'] ?? 0);
+      if(!in_array($uType, ['user','magic'], true) || $uId<=0) throw new Exception('Invalid principal.');
+      $pdo->prepare("UPDATE sessions SET revoked_at=NOW() WHERE user_type=? AND user_id=? AND revoked_at IS NULL")->execute([$uType,$uId]);
+      $msg='All sessions revoked for principal.';
       $actorId = (int)($_SESSION['pid'] ?? 0);
-      log_event($pdo, 'user', $actorId, 'admin.session.revoke', [
-        'session_id'=>$sid,
-        'user_type'=>$sess['user_type'],
-        'user_id'=>(int)$sess['user_id'],
-        'reason'=>'admin_kill'
+      log_event($pdo, 'user', $actorId, 'admin.session.revoke_all', [
+        'user_type'=>$uType,
+        'user_id'=>$uId,
+        'reason'=>'admin_kill_all'
       ]);
     }
   }catch(Throwable $e){ $err=$e->getMessage(); }
@@ -207,7 +221,14 @@ require_once __DIR__.'/_partials/header.php';
                     <?php else: ?>
                       <div class="small text-muted">No recent events</div>
                     <?php endif; ?>
-                    <a class="small" href="/admin/logs.php?actor_type=<?=urlencode($r['user_type'])?>&from=<?=urlencode(str_replace(' ','T',substr($from,0,16)))?>&to=<?=urlencode(str_replace(' ','T',substr($to,0,16)))?><?php if($r['ip']) echo '&ip='.urlencode($r['ip']); ?>" target="_blank">View in Logs</a>
+                    <a class="small me-2" href="/admin/logs.php?actor_type=<?=urlencode($r['user_type'])?>&from=<?=urlencode(str_replace(' ','T',substr($from,0,16)))?>&to=<?=urlencode(str_replace(' ','T',substr($to,0,16)))?><?php if($r['ip']) echo '&ip='.urlencode($r['ip']); ?>" target="_blank">View in Logs</a>
+                    <form method="post" onsubmit="return confirm('Revoke ALL sessions for this user?');" class="d-inline">
+                      <?php csrf_field(); ?>
+                      <input type="hidden" name="action" value="kill_all" />
+                      <input type="hidden" name="user_type" value="<?=htmlspecialchars($r['user_type'])?>" />
+                      <input type="hidden" name="user_id" value="<?= (int)$r['user_id'] ?>" />
+                      <button class="btn btn-sm btn-outline-danger">Kill All</button>
+                    </form>
                   </div>
                 </div>
               </div>
@@ -239,4 +260,3 @@ require_once __DIR__.'/_partials/header.php';
   <div class="form-text">Click a row to view lifecycle, client, and activity details.</div>
 </div>
 <?php require __DIR__.'/_partials/footer.php'; ?>
-
