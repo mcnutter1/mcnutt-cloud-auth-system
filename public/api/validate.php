@@ -38,7 +38,8 @@ if($token !== ''){
     // Log token validation failure
     log_event($pdo, 'system', null, 'token.validate.failed', ['app_id'=>$appId, 'client_ip'=>$clientIp]);
     if($clientIp){ rl_note_failure($pdo, 'api:ip:'.$clientIp, 300); }
-    echo json_encode(['ok'=>false]); exit;
+    http_response_code(401);
+    echo json_encode(['ok'=>false, 'reason'=>'invalid_or_revoked_token']); exit;
   }
   $principal=['type'=>$row['user_type'],'id'=>(int)$row['user_id']];
   $identity = ($row['user_type']==='user') ? $userModel->publicProfile((int)$row['user_id']) : $keyModel->publicProfile((int)$row['user_id']);

@@ -7,6 +7,7 @@ require_once __DIR__.'/../../src/logger.php';
 require_admin();
 
 $pdo = db();
+$currentSessionId = 0; if(session_status()!==PHP_SESSION_ACTIVE) session_start(); $currentSessionId = (int)($_SESSION['session_row_id'] ?? 0);
 $msg=null; $err=null;
 
 // Revoke (kill) a session or all sessions for a principal
@@ -127,6 +128,19 @@ require_once __DIR__.'/_partials/header.php';
 
   <div class="card shadow-sm">
     <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="fw-semibold">Active Sessions</div>
+        <div>
+          <?php if($currentSessionId>0): ?>
+          <form method="post" class="d-inline" onsubmit="return confirm('Kill the session used by this device? You will be logged out.');">
+            <?php csrf_field(); ?>
+            <input type="hidden" name="action" value="kill" />
+            <input type="hidden" name="id" value="<?=$currentSessionId?>" />
+            <button class="btn btn-sm btn-outline-danger" type="submit">Kill This Device</button>
+          </form>
+          <?php endif; ?>
+        </div>
+      </div>
       <div class="table-responsive">
         <table class="table align-middle mb-0">
           <thead>
@@ -143,7 +157,7 @@ require_once __DIR__.'/_partials/header.php';
             </tr>
           </thead>
           <tbody>
-          <?php $seen=[]; foreach($rows as $r): $id=(int)$r['id']; if(isset($seen[$id])) continue; $seen[$id]=true; $ident = $r['user_type']==='user' ? ($r['username'] ?? ('#'.$r['user_id'])) : ($r['email'] ?? ('#'.$r['user_id'])); list($from,$to) = session_window_bounds($r);
+          <?php $seen=[]; foreach($rows as $r): $id=(int)$r['id']; if(isset($seen[$id])) continue; $seen[$id]=true; $ident = $r['user_type']==='user' ? ($r['username'] ?? ('#'.$r['user_id'])) : ($r['email'] ?? ('#'.$r['user_id'])); $isThisDevice = ($id === $currentSessionId); list($from,$to) = session_window_bounds($r);
             // Derive app usage summary for this session window
             $appsUsed = [];$appsResolved=[];
             try{
@@ -171,7 +185,12 @@ require_once __DIR__.'/_partials/header.php';
               </td>
               <td class="text-muted small"><?=$id?></td>
               <td><span class="badge text-bg-secondary"><?=htmlspecialchars($r['user_type'])?></span></td>
-              <td class="font-monospace small text-truncate" style="max-width:220px;" title="<?=htmlspecialchars($ident)?>"><?=htmlspecialchars($ident)?></td>
+              <td class="font-monospace small text-truncate" style="max-width:220px;" title="<?=htmlspecialchars($ident)?>">
+                <?=htmlspecialchars($ident)?>
+                <?php if($isThisDevice): ?>
+                  <span class="badge rounded-pill text-bg-primary ms-1" title="This admin session">This device</span>
+                <?php endif; ?>
+              </td>
               <td class="small text-muted"><?=htmlspecialchars($r['ip'] ?? '')?></td>
               <td class="small">
                 <?php if($appsResolved): $shown=0; foreach($appsResolved as $aid=>$nm): $shown++; if($shown>3) break; ?>
@@ -187,7 +206,7 @@ require_once __DIR__.'/_partials/header.php';
                   <?php csrf_field(); ?>
                   <input type="hidden" name="action" value="kill" />
                   <input type="hidden" name="id" value="<?=$id?>" />
-                  <button class="btn btn-sm btn-outline-danger" type="submit" <?php if($r['revoked_at']) echo 'disabled'; ?>>Kill</button>
+                  <button class="btn btn-sm btn-outline-danger" type="submit" <?php if($r['revoked_at']) echo 'disabled'; ?>><?php echo $isThisDevice ? 'Kill This Device' : 'Kill'; ?></button>
                 </form>
               </td>
             </tr>

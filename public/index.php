@@ -69,7 +69,17 @@ if($_SERVER['REQUEST_METHOD']!=='POST' && $appId && isset($_SESSION['ptype'], $_
     header('Location: /access_denied.php?reason=inactive_app&app_id='.urlencode($appId).'&return_url='.urlencode($returnUrl ?: $app['return_url']));
     exit;
   }
-  if($app && $app['is_active'] && (int)($app['auto_login'] ?? 1)===1){
+  // Only auto-login if this browser has an active bound SSO session row
+  $canAutoLogin = false;
+  $boundId = (int)($_SESSION['session_row_id'] ?? 0);
+  if($boundId>0){
+    try{
+      $chk=$pdo->prepare('SELECT 1 FROM sessions WHERE id=? AND revoked_at IS NULL AND expires_at>NOW() LIMIT 1');
+      $chk->execute([$boundId]);
+      $canAutoLogin = (bool)$chk->fetchColumn();
+    }catch(Throwable $e){ $canAutoLogin=false; }
+  }
+  if($app && $app['is_active'] && (int)($app['auto_login'] ?? 1)===1 && $canAutoLogin){
     // If user must change password, redirect to interstitial update page first
     if($_SESSION['ptype']==='user'){
       try{
