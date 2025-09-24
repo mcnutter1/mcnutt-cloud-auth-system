@@ -5,10 +5,6 @@ class AuthService {
   private $pdo; private $cfg;
   public function __construct(PDO $pdo, array $cfg){ $this->pdo=$pdo; $this->cfg=$cfg; }
   public function issueSession(string $userType, int $userId, ?string $appId, int $ttlMin): array {
-    // Enforce single active SSO session per principal by revoking prior active sessions
-    try {
-      $this->pdo->prepare("UPDATE sessions SET revoked_at=NOW() WHERE user_type=? AND user_id=? AND revoked_at IS NULL")->execute([$userType,$userId]);
-    } catch (Throwable $e) { /* ignore and proceed */ }
     $token = bin2hex(random_bytes(32));
     $expires = (new DateTimeImmutable("+{$ttlMin} minutes"));
     $stmt = $this->pdo->prepare("INSERT INTO sessions (user_type,user_id,session_token,app_id,expires_at,ip,user_agent) VALUES (?,?,?,?,?,?,?)");

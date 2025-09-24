@@ -15,21 +15,29 @@ function ensure_active_principal_or_redirect(): void {
       $pdo = db();
       $sid = isset($_SESSION['session_row_id']) ? (int)$_SESSION['session_row_id'] : 0;
       if($sid>0){
-        $st = $pdo->prepare("SELECT COUNT(*) FROM sessions WHERE id=? AND revoked_at IS NULL AND expires_at>NOW()");
+        $st = $pdo->prepare("SELECT id FROM sessions WHERE id=? AND revoked_at IS NULL AND expires_at>NOW() LIMIT 1");
         $st->execute([$sid]);
-        $ok = (int)$st->fetchColumn() === 1;
+        $ok = (bool)$st->fetchColumn();
         if(!$ok){
-          session_unset(); session_destroy();
-          $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']!=='off') ? 'https' : 'http';
-          $return = $scheme.'://'.($_SERVER['HTTP_HOST'] ?? 'localhost').($_SERVER['REQUEST_URI'] ?? '/');
-          header('Location: /?'.http_build_query(['return_url'=>$return]));
-          exit;
+          // Try to adopt any other active session for this principal (multi-device friendly)
+          $st2 = $pdo->prepare("SELECT id FROM sessions WHERE user_type=? AND user_id=? AND revoked_at IS NULL AND expires_at>NOW() ORDER BY COALESCE(last_seen_at, issued_at) DESC LIMIT 1");
+          $st2->execute([$ptype,$pid]);
+          $adopt = (int)$st2->fetchColumn();
+          if($adopt>0){ $_SESSION['session_row_id']=$adopt; }
+          else {
+            session_unset(); session_destroy();
+            $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']!=='off') ? 'https' : 'http';
+            $return = $scheme.'://'.($_SERVER['HTTP_HOST'] ?? 'localhost').($_SERVER['REQUEST_URI'] ?? '/');
+            header('Location: /?'.http_build_query(['return_url'=>$return]));
+            exit;
+          }
         }
       } else {
-        $st = $pdo->prepare("SELECT COUNT(*) FROM sessions WHERE user_type=? AND user_id=? AND revoked_at IS NULL AND expires_at>NOW()");
+        $st = $pdo->prepare("SELECT id FROM sessions WHERE user_type=? AND user_id=? AND revoked_at IS NULL AND expires_at>NOW() ORDER BY COALESCE(last_seen_at, issued_at) DESC LIMIT 1");
         $st->execute([$ptype, $pid]);
-        $cnt = (int)$st->fetchColumn();
-        if($cnt === 0){
+        $adopt = (int)$st->fetchColumn();
+        if($adopt>0){ $_SESSION['session_row_id']=$adopt; }
+        else {
           session_unset(); session_destroy();
           $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']!=='off') ? 'https' : 'http';
           $return = $scheme.'://'.($_SERVER['HTTP_HOST'] ?? 'localhost').($_SERVER['REQUEST_URI'] ?? '/');
