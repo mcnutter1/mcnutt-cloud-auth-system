@@ -9,7 +9,8 @@ class AuthService {
     $expires = (new DateTimeImmutable("+{$ttlMin} minutes"));
     $stmt = $this->pdo->prepare("INSERT INTO sessions (user_type,user_id,session_token,app_id,expires_at,ip,user_agent) VALUES (?,?,?,?,?,?,?)");
     $stmt->execute([$userType,$userId,$token,$appId,$expires->format('Y-m-d H:i:s'),$_SERVER['REMOTE_ADDR']??null,$_SERVER['HTTP_USER_AGENT']??null]);
-    return ['token'=>$token,'expires_at'=>$expires->getTimestamp()];
+    $id = (int)$this->pdo->lastInsertId();
+    return ['id'=>$id,'token'=>$token,'expires_at'=>$expires->getTimestamp()];
   }
   public function revokeAllForPrincipal(string $userType, int $userId): void {
     $this->pdo->prepare("UPDATE sessions SET revoked_at=NOW() WHERE user_type=? AND user_id=? AND revoked_at IS NULL")->execute([$userType,$userId]);

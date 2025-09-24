@@ -125,6 +125,10 @@ if($_SERVER['REQUEST_METHOD']!=='POST' && $appId && isset($_SESSION['ptype'], $_
     $ptype=$_SESSION['ptype']; $pid=(int)$_SESSION['pid'];
     $principal=['type'=>$ptype,'id'=>$pid];
     $sess = $auth->issueSession($principal['type'], $principal['id'], null, (int)$CONFIG['SESSION_TTL_MIN']);
+    // Bind portal session to this SSO session row
+    if(session_status() !== PHP_SESSION_ACTIVE){ session_start(); }
+    $_SESSION['session_row_id'] = (int)($sess['id'] ?? 0);
+    $_SESSION['sso_session_token'] = $sess['token'];
     $identity = ($principal['type']==='user') ? $userModel->publicProfile($principal['id']) : $keyModel->publicProfile($principal['id']);
     $roles = ($principal['type']==='user') ? $userModel->roles($principal['id']) : $keyModel->roles($principal['id']);
     $_SESSION['is_admin'] = in_array('admin', $roles, true);
@@ -265,6 +269,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       }
     }
     $sess = $auth->issueSession($principal['type'], $principal['id'], null, (int)$CONFIG['SESSION_TTL_MIN']);
+    // Bind portal session to this SSO session row
+    if(session_status() !== PHP_SESSION_ACTIVE){ session_start(); }
+    $_SESSION['session_row_id'] = (int)($sess['id'] ?? 0);
+    $_SESSION['sso_session_token'] = $sess['token'];
     $identity = ($principal['type']==='user') ? $userModel->publicProfile($principal['id']) : $keyModel->publicProfile($principal['id']);
     $roles = ($principal['type']==='user') ? $userModel->roles($principal['id']) : $keyModel->roles($principal['id']);
     // Update admin flag in session based on role membership

@@ -131,22 +131,55 @@ require_once __DIR__.'/_partials/header.php';
         <table class="table align-middle mb-0">
           <thead>
             <tr>
+              <th style="width:32px;"></th>
               <th>ID</th>
               <th>Actor</th>
               <th>Identity</th>
               <th>IP</th>
+              <th>Apps</th>
               <th>Last Seen</th>
               <th>Expires</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-          <?php foreach($rows as $r): $id=(int)$r['id']; $ident = $r['user_type']==='user' ? ($r['username'] ?? ('#'.$r['user_id'])) : ($r['email'] ?? ('#'.$r['user_id'])); list($from,$to) = session_window_bounds($r); ?>
+          <?php $seen=[]; foreach($rows as $r): $id=(int)$r['id']; if(isset($seen[$id])) continue; $seen[$id]=true; $ident = $r['user_type']==='user' ? ($r['username'] ?? ('#'.$r['user_id'])) : ($r['email'] ?? ('#'.$r['user_id'])); list($from,$to) = session_window_bounds($r);
+            // Derive app usage summary for this session window
+            $appsUsed = [];$appsResolved=[];
+            try{
+              $w=[]; $p=[];
+              if(!empty($r['ip'])){ $w[]='ip<=>?'; $p[]=$r['ip']; }
+              $w[]='actor_type=?'; $p[]=$r['user_type'];
+              $w[]='actor_id=?';  $p[]=(int)$r['user_id'];
+              $w[]='ts>=?';       $p[]=$from;
+              $w[]='ts<=?';       $p[]=$to;
+              $where = 'WHERE '.implode(' AND ',$w);
+              $qs = "SELECT detail FROM logs $where AND event IN ('access.authorized','token.validate.success') ORDER BY ts DESC LIMIT 200";
+              $stA=$pdo->prepare($qs); $stA->execute($p);
+              while($row=$stA->fetch(PDO::FETCH_ASSOC)){
+                $d=json_decode($row['detail'] ?? '', true); $aid=$d['app_id'] ?? null; if($aid){ $appsUsed[$aid]=true; }
+              }
+              if($appsUsed){
+                $ids=array_keys($appsUsed); $ph=implode(',', array_fill(0,count($ids),'?'));
+                $stm=$pdo->prepare("SELECT app_id,name FROM apps WHERE app_id IN ($ph)"); $stm->execute($ids); while($ar=$stm->fetch(PDO::FETCH_ASSOC)){ $appsResolved[$ar['app_id']]=$ar['name']; }
+              }
+            }catch(Throwable $e){ /* ignore */ }
+          ?>
             <tr class="cursor-pointer" onclick="toggleDetails(this)" title="Click to view details">
+              <td class="text-muted small">
+                <span class="chev">▶</span>
+              </td>
               <td class="text-muted small"><?=$id?></td>
               <td><span class="badge text-bg-secondary"><?=htmlspecialchars($r['user_type'])?></span></td>
               <td class="font-monospace small text-truncate" style="max-width:220px;" title="<?=htmlspecialchars($ident)?>"><?=htmlspecialchars($ident)?></td>
               <td class="small text-muted"><?=htmlspecialchars($r['ip'] ?? '')?></td>
+              <td class="small">
+                <?php if($appsResolved): $shown=0; foreach($appsResolved as $aid=>$nm): $shown++; if($shown>3) break; ?>
+                  <span class="badge rounded-pill text-bg-light border me-1" title="<?=htmlspecialchars($nm)?>"><?=htmlspecialchars($aid)?></span>
+                <?php endforeach; if(count($appsResolved)>3): ?><span class="text-muted small">+<?=count($appsResolved)-3?></span><?php endif; else: ?>
+                  <span class="text-muted">—</span>
+                <?php endif; ?>
+              </td>
               <td class="small"><?php echo $r['last_seen_at'] ? htmlspecialchars($r['last_seen_at']) : '<span class="text-muted">never</span>'; ?></td>
               <td class="small <?php echo (strtotime($r['expires_at'])<time())?'text-danger':''; ?>"><?=htmlspecialchars($r['expires_at'])?></td>
               <td class="text-end">
@@ -154,11 +187,11 @@ require_once __DIR__.'/_partials/header.php';
                   <?php csrf_field(); ?>
                   <input type="hidden" name="action" value="kill" />
                   <input type="hidden" name="id" value="<?=$id?>" />
-                  <button class="btn btn-sm btn-outline-danger" type="submit">Kill</button>
+                  <button class="btn btn-sm btn-outline-danger" type="submit" <?php if($r['revoked_at']) echo 'disabled'; ?>>Kill</button>
                 </form>
               </td>
             </tr>
-            <tr class="d-none"><td colspan="7">
+            <tr class="d-none"><td colspan="8">
               <div class="p-3 bg-light border rounded">
                 <div class="row g-3">
                   <div class="col-md-4">
@@ -180,8 +213,14 @@ require_once __DIR__.'/_partials/header.php';
                     <div class="small font-monospace"><?=htmlspecialchars($r['ip'] ?? '')?></div>
                     <div class="small text-muted mt-2">User Agent</div>
                     <div class="small text-break"><?=htmlspecialchars($r['user_agent'] ?? '')?></div>
-                    <div class="small text-muted mt-2">App ID</div>
-                    <div class="small font-monospace"><?=htmlspecialchars($r['app_id'] ?? '')?></div>
+                    <div class="small text-muted mt-2">Apps Used</div>
+                    <div>
+                      <?php if($appsResolved): foreach($appsResolved as $aid=>$nm): ?>
+                        <span class="badge rounded-pill text-bg-light border me-1 mb-1" title="<?=htmlspecialchars($nm)?>"><?=htmlspecialchars($aid)?></span>
+                      <?php endforeach; else: ?>
+                        <span class="text-muted small">No app activity observed</span>
+                      <?php endif; ?>
+                    </div>
                     <div class="small text-muted mt-2">Token</div>
                     <div class="small font-monospace"><?php $tok=$r['session_token']; echo htmlspecialchars(substr($tok,0,8).'…'.substr($tok,-4)); ?></div>
                   </div>
@@ -253,6 +292,8 @@ require_once __DIR__.'/_partials/header.php';
         var next = row.nextElementSibling;
         if(!next) return;
         next.classList.toggle('d-none');
+        var chev = row.querySelector('.chev');
+        if(chev){ chev.textContent = next.classList.contains('d-none') ? '▶' : '▼'; }
       }
     </script>
   </div>
